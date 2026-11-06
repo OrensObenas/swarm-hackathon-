@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 A="python3 analyze.py"
 $A results/main_mistral-small-2603 results/xmonitor_gpt-5.4-mini results/explore_sanitize_mistral-small-2603 --out results/combined >/dev/null
-for d in replication_mistral-small-2603 adversarial_mistral-small-2603 model_gpt-5.4-mini input_mistral-small-2603 \
+for d in recovery_mistral-small-2603 replication_mistral-small-2603 adversarial_mistral-small-2603 model_gpt-5.4-mini input_mistral-small-2603 \
          native_mistral-small-2603 board_mistral-small-2603; do
   [ -s results/$d/episodes.jsonl ] && $A results/$d >/dev/null && echo "analyzed $d"
 done
