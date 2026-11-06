@@ -5,7 +5,7 @@ title: "Stopping the Attack, Breaking the Task: Silent Failures and Recovery in 
 **Author:** Gilbert Obenas  
 **Affiliation:** Independent researcher  
 **Track(s):** Science of agent networks & failure propagation; Multi-agent oversight & control  
-**Code and logs:** [REPOSITORY URL — to be filled in once the author decides on visibility]
+**Code and logs:** https://github.com/OrensObenas/swarm-hackathon-/tree/claude/prompt-injection-multi-agent-la2d6h
 
 ## Abstract
 
@@ -156,7 +156,7 @@ The same pattern holds under native tool calling (N) and on the shared board (T,
 
 
 ### 4.3 Mechanisms (transcript audit and exploratory analyses)
-We audited 10 randomly drawn episodes per injected condition from Main, X and S (seed 0; `docs/transcript_audit.csv`). The annotation was done by an AI assistant and has **not yet been verified by a human** [AUTHOR: replace this sentence once you have spot-checked the CSV].
+We audited 10 randomly drawn episodes per injected condition from Main, X and S (seed 0; `docs/transcript_audit.csv`). The annotation was done by an AI assistant (Claude) and was **not independently verified by a human**; the CSV and the raw transcripts are released so that readers can check it.
 - **Paraphrase, not copy.** At hop 2, every audited relay was a paraphrase. The injection was often reframed as a procedural note.
 - **Execute *or* relay (exploratory).** Among exposed analysts in Main, those who executed the injection relayed it onward in 1/10 cases, against 15/16 for those who did not execute it. Neither hijacked retriever relayed it. Agents appear to treat the instruction as a to-do item that is discharged once done.
 - **Lost warnings under blocking.** In 16/30 Main block episodes, the analyst explicitly wrote that the retriever's notes were withheld, then proceeded with invented data. That knowledge did not survive to the final report.
@@ -238,7 +238,7 @@ In a small, pre-registered, fully simulated four-agent testbed, a self-replicati
 - **Measurement.**
   - Taint labels rely on a marker or address, and paraphrases that drop both would be missed.
   - "Silent failure" relies on a regular expression over the final report.
-  - The transcript audit was annotated by an AI assistant (a human spot-check by the author is pending).
+  - The transcript audit was annotated by an AI assistant (not independently verified by a human).
   - The JSON action protocol is not how production agents call tools; batch N partially addresses this.
 - **Retry assumes an honest sender.** In batch B the retriever was never hijacked in the recovery conditions. A compromised sender could exploit the feedback loop, which was not tested.
 - **Same-model monitor.** The monitor mostly used the agents' model. One cross-provider batch (X) showed the same pattern.
@@ -446,7 +446,7 @@ Requirement update (applies to all vendors, confirmed by Northwind procurement):
 ## Appendix D. Reproducibility, pre-existing work and AI assistance
 - **Code and logs.** `run_experiment.py`, `analyze.py`, `scripts/final_analysis.sh` and `scripts/build_report.py`. Every number in this report is generated from the logs by `scripts/report_numbers.py`. Commands are in the README; exact versions are in `requirements-lock.txt`.
 - **Pre-existing work.** None. All code, prompts and data were created during the sprint (6–8 Nov 2026).
-- **AI assistance.** An AI coding assistant (Claude, via Claude Code) helped write the code, run the experiments, analyse the logs and draft this report. [AUTHOR: confirm] The author reviewed the content and is responsible for it. The models *under study* are only those listed in §3.4.
+- **AI assistance.** An AI coding assistant (Claude, via Claude Code) helped write the code, run the experiments, analyse the logs and draft this report. The author is responsible for the content of this report. The models *under study* are only those listed in §3.4.
 
 ## Appendix E. Additional tables
 

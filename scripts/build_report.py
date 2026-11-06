@@ -3,8 +3,8 @@
 - {{key}} placeholders are filled from scripts/report_numbers.py (computed from logs);
   an unknown key is an error, so no number can be left unfilled or typed by hand.
 - Appendix B prompts are extracted verbatim from the code.
-Outputs: docs/report/report.md, report.html, report_preview.pdf (preview only: the
-official Apart template must be used for the submitted PDF)."""
+Outputs: docs/report/report.md and docs/report/report.pdf (A4, standalone layout; the
+hackathon asks for its official template, so the text should be transferred into it if possible)."""
 import os
 import re
 import subprocess
@@ -79,13 +79,12 @@ pre{font-size:7.5pt;white-space:pre-wrap;background:#f5f5f5;padding:4px}img{max-
                         f"n = 30 per point.]({fig})\n\n**Table 1.**", 1)
     tmp_md = os.path.join(OUT, "_with_fig.md")
     with open(tmp_md, "w") as f:
-        f.write('<p class="preview">PREVIEW ONLY — paste into the official Apart template before submitting.</p>\n\n'
-                + md_fig)
+        f.write(md_fig)
     html = os.path.join(OUT, "report.html")
     subprocess.run(["pandoc", "-f", "markdown+lists_without_preceding_blankline", tmp_md, "-s", "--embed-resources", "--css", os.path.join(OUT, "style.css"),
                     "-o", html, "--metadata", "lang=en"], check=True)
     os.remove(tmp_md)
-    pdf = os.path.join(OUT, "report_preview.pdf")
+    pdf = os.path.join(OUT, "report.pdf")
     js = f"""const {{chromium}}=require('playwright');(async()=>{{const b=await chromium.launch();
 const p=await b.newPage();await p.goto('file://{html}');
 await p.pdf({{path:'{pdf}',format:'A4',margin:{{top:'18mm',bottom:'18mm',left:'18mm',right:'18mm'}},

@@ -1,76 +1,84 @@
-# Injection de prompt dans une chaîne d'agents : propagation et moniteur de canal
+# Stopping the Attack, Breaking the Task: Silent Failures and Recovery in Monitored Multi-Agent Pipelines
 
-Projet pour le Swarm Alignment Hackathon (Apart Research, nov. 2026). Petite expérience reproductible, **entièrement simulée** : données fictives, outils factices, aucun compte réel ni aucune action externe.
+Submission to the **Swarm Alignment Hackathon** (Apart Research, 6–8 Nov 2026). Tracks: *science of agent networks & failure propagation* and *multi-agent oversight & control*.
+Author: Gilbert Obenas (independent).
 
-- **Rapport (brouillon)** : [`docs/report/report.md`](docs/report/report.md), aperçu PDF `docs/report/report_preview.pdf`, régénéré par `python scripts/build_report.py` (tous les chiffres viennent des journaux). Liste de contrôle de soumission : [`docs/submission_checklist.md`](docs/submission_checklist.md)
-- Question de recherche, critique, travaux proches et hypothèses pré-enregistrées : [`docs/research_plan.md`](docs/research_plan.md)
-- Plan du rapport : [`docs/report_outline.md`](docs/report_outline.md)
-- Annexe sur le double usage : [`docs/dual_use_appendix.md`](docs/dual_use_appendix.md)
-- **Résultats** : [`docs/results.md`](docs/results.md) ; figure de synthèse `results/overview.png`
-- Pré-enregistrements et amendements : `docs/research_plan.md` §5 et §8 à §13 ; relecture des transcriptions : `docs/transcript_audit.csv`
+- 📄 **Report:** [`docs/report/report.pdf`](docs/report/report.pdf) (source: [`docs/report/report.md`](docs/report/report.md))
+- 📊 **Overview figure:** [`results/overview.png`](results/overview.png)
 
-## Installation
+## In one paragraph
 
-```bash
-pip install -r requirements.txt
-python tests/test_pipeline.py        # tests du harnais (sans clé API)
-# versions exactes utilisées : requirements-lock.txt
-```
+Four LLM agents (retriever → analyst → writer → reviewer) solve a fictional procurement task and share a mock e-mail tool. A self-replicating prompt injection is hidden in one untrusted vendor quote, which only the first agent reads. Across 1,380 episodes in ten batches (30 per condition; hypotheses pre-registered, exploratory parts labelled), the injection regularly hijacked agents that never read the poisoned document.
 
-## Exécution
+An LLM monitor that **withholds** suspicious inter-agent messages stopped every such hijack in the scenarios tested. But it collapsed the legitimate task through **silent failures**: confident reports naming vendors that do not exist. **Recovery** removed this cost:
+- letting the blocked sender resend after feedback performed as well as rewriting the message (30/30 tasks, 0 attacks);
+- an explicit abstention notice made failures **visible** instead of silent.
 
-```bash
-# 1) Test du pipeline, sans clé API. Chiffres SYNTHÉTIQUES, pas des résultats.
-python run_experiment.py --backend mock --trials 30 --out results/mock_smoke
-python analyze.py results/mock_smoke
+All data, companies, addresses and tools are fictional and simulated. No real account was used and no external action was taken.
 
-# 2) Pilote avec un vrai modèle (ANTHROPIC_API_KEY requis), voir la règle du pilote dans le plan, §5
-python run_experiment.py --backend anthropic --model claude-opus-5-5 \
-    --conditions replicating_none --trials 5 --out results/pilot
+## Repository map
 
-# 3) Plan principal 2x2 (estimez d'abord le coût à partir des tokens du pilote)
-python run_experiment.py --backend anthropic --model claude-opus-5-5 --trials 30 --workers 4 --out results/main
-python analyze.py results/main
-```
-
-Options : `--protocol native` (appels d'outils natifs), `--topology board` (tableau partagé), `--monitor-backend/--monitor-model`. Conditions `<injection>_<moniteur>`, avec l'injection parmi `benign`, `replicating`, `direct`, `polite`, `monitor_bypass` et `sanitizer_bypass`, et le moniteur parmi `none`, `keyword`, `llm`, `sanitize` et `inputsanitize`.
-
-`--dry-run` affiche le nombre d'épisodes restants. Une relance avec le même `--out` reprend là où l'exécution s'était arrêtée.
-
-## Structure
-
-| Fichier | Rôle |
+| Path | What it is |
 |---|---|
-| `pi_swarm/world.py` | Environnement fictif, injection, outils simulés, étiquettes de vérité terrain |
-| `pi_swarm/episode.py` | Chaîne de 4 agents, protocole d'actions JSON, moniteur (`none`/`keyword`/`llm`), métriques par épisode |
-| `pi_swarm/backends.py` | Backends Anthropic, OpenAI/Mistral (API compatible) et `mock` (tests uniquement) |
-| `run_experiment.py` | Conditions × essais, ordre aléatoire, journal JSONL, reprise après interruption |
-| `analyze.py` | Tableaux (IC de Wilson, test exact de Fisher, IC de Newcombe), échec silencieux, figures ; plusieurs exécutions regroupables avec `--out` |
-| `scripts/final_analysis.sh` | Régénère toutes les synthèses et `results/overview.png` |
-| `scripts/audit_*.py` | Tirage et grille de la relecture des transcriptions |
+| `pi_swarm/world.py` | Fictional environment: documents, injection texts, simulated tools, ground-truth labels |
+| `pi_swarm/episode.py` | Four-agent chain or shared board, JSON or native tool-calling protocol, monitors (`none`, `llm` = block, `block_retry`, `block_abstain`, `llm_sanitize`, `input_sanitize`, `keyword`), per-episode metrics |
+| `pi_swarm/backends.py` | OpenAI-compatible backend (Mistral, OpenAI), Anthropic backend (unused in reported runs), and a seeded `mock` backend used **only** for tests |
+| `run_experiment.py` | Runs conditions × trials in a shuffled order, logs JSONL, resumes after interruption |
+| `analyze.py` | Wilson CIs, Fisher exact tests, Newcombe CI, silent-failure and strict metrics, figures |
+| `scripts/report_numbers.py`, `scripts/build_report.py` | Generate **every number** in the report from the logs, and build the report |
+| `scripts/independent_recount.py` | Recounts the headline metrics from raw logs without using `analyze.py` (cross-check) |
+| `scripts/final_analysis.sh` | Regenerates all summaries and the overview figure |
+| `scripts/audit_*.py`, `docs/transcript_audit.csv` | Random transcript audit (40 episodes, AI-annotated) |
+| `scripts/verification_sample.py`, `docs/verification/` | 23 complete, human-readable episodes (successes and failures) |
+| `results/<batch>/` | `episodes.jsonl` (every LLM call, tool call, message and monitor verdict), `config.json` (arguments, git commit), `summary.md`, figures |
+| `docs/research_plan.md` | Pre-registration log: hypotheses, pilots and amendments, each committed before its data (in French) |
+| `docs/results.md` | Working results notes (in French) |
+| `tests/test_pipeline.py` | 12 tests, including an end-to-end mock run and analysis |
 
-## Journaux
+**Batches reported:** `main`, `xmonitor` (X), `explore_sanitize` (S), `replication` (R), `adversarial` (A), `model_gpt-5.4-mini` (M), `input` (I), `native` (N), `board` (T), `recovery` (B).
 
-`results/<run>/episodes.jsonl` contient une ligne par épisode : configuration (modèle, graine, commit), **tous** les appels LLM avec leur texte, les appels d'outils, les messages entre agents avec le verdict du moniteur, et le résumé des métriques. `config.json` enregistre les arguments, le commit git et l'environnement.
+**Not reported:**
+- `pilot*`: excluded pilots;
+- `mock_smoke`: synthetic numbers from the mock backend, a pipeline test only, **not evidence**;
+- `excluded/`: a duplicated run, see its README.
 
-## Honnêteté des résultats
-
-Les journaux produits avec `--backend mock` sont marqués `backend: "mock"`. `analyze.py` affiche alors un avertissement dans le tableau et sur les figures. Ces chiffres proviennent de probabilités fixées à la main et ne disent **rien** du comportement réel des LLM.
-
-## Reproduire les résultats rapportés
+## Reproduce
 
 ```bash
-# clés : MISTRAL_API_KEY et OPENAI_API_KEY (dans la session cloud, elles sont injectées par le proxy)
-python run_experiment.py --backend mistral --model mistral-small-2603 --trials 30 --workers 6 --seed 1 --out results/main_mistral-small-2603
-python run_experiment.py --backend mistral --model mistral-small-2603 --monitor-backend openai --monitor-model gpt-5.4-mini \
-    --conditions benign_llm replicating_llm --trials 30 --workers 4 --seed 2 --out results/xmonitor_gpt-5.4-mini
-python run_experiment.py --backend mistral --model mistral-small-2603 --conditions benign_sanitize replicating_sanitize \
-    --trials 30 --workers 4 --seed 3 --out results/explore_sanitize_mistral-small-2603
-python analyze.py results/main_mistral-small-2603 results/xmonitor_gpt-5.4-mini results/explore_sanitize_mistral-small-2603 --out results/combined
+pip install -r requirements.txt          # exact versions: requirements-lock.txt (Python 3.13)
+python tests/test_pipeline.py            # no API key needed
+
+# Re-run a batch (needs MISTRAL_API_KEY; OPENAI_API_KEY for gpt-5.4-mini). Example: batch B
+python run_experiment.py --backend mistral --model mistral-small-2603 --trials 30 --workers 6 --seed 70 \
+  --conditions replicating_llm replicating_blockretry replicating_blockabstain replicating_sanitize \
+               benign_blockretry benign_blockabstain --out results/recovery_mistral-small-2603
+
+# Recompute everything from the logs
+bash scripts/final_analysis.sh
+python scripts/independent_recount.py
+python scripts/build_report.py
 ```
-Les sorties des LLM ne sont pas déterministes : une nouvelle exécution donnera des chiffres proches, pas identiques.
 
-## Travail préexistant et assistance IA
+The exact arguments of every batch are stored in `results/<batch>/config.json`.
 
-- **Travail préexistant : aucun.** Le code, les prompts, les données fictives et les résultats ont tous été produits pendant le sprint (6 au 8 nov. 2026). Le premier commit du dépôt est vide (README d'une ligne).
-- **Assistance IA** : le code, l'exécution des expériences, l'analyse et la rédaction ont été faits avec l'aide de Claude (Claude Code). Les modèles **étudiés** dans les expériences sont uniquement `mistral-small-2603` et `gpt-5.4-mini`, comme indiqué dans `config.json` et dans chaque ligne d'`episodes.jsonl`.
+- **Options:** `--protocol native` (native tool calling), `--topology board` (shared board), `--monitor-backend` / `--monitor-model`.
+- **Condition names:** `<injection>_<monitor>`, where:
+  - injection is one of `benign`, `replicating`, `direct`, `polite`, `monitor_bypass`, `sanitizer_bypass`;
+  - monitor is one of `none`, `keyword`, `llm`, `blockretry`, `blockabstain`, `sanitize`, `inputsanitize`.
+
+LLM outputs are not deterministic: re-runs give close, not identical, numbers.
+
+## Integrity notes
+
+- Every hypothesis, pilot amendment and new batch was written into `docs/research_plan.md` and committed **before** its data were collected. The git history carries the timestamps. Exploratory and post-hoc analyses are labelled as such in the report.
+- Every number in the report is generated from the logs, and an unknown placeholder makes the build fail. `scripts/independent_recount.py` matches `analyze.py` on every batch. It found one analysis bug, which is fixed and documented in Appendix C of the report.
+- The transcript audit was annotated by an AI assistant and **not independently verified by a human**.
+
+## Pre-existing work and AI assistance
+
+- **Pre-existing work: none.** All code, prompts, data and results were produced during the sprint (6–8 Nov 2026). The initial commit contains only a one-line README.
+- **AI assistance:** the code, the running of experiments, the analysis and the drafting were done with the help of Claude (Claude Code). The models **under study** are `mistral-small-2603` and `gpt-5.4-mini` only.
+
+## Dual use
+
+The injection texts and the harness could in principle help someone tune injections against real multi-agent systems. The patterns used are already public, no attack was optimised, and everything runs in a simulated environment with `.example` addresses. See *Appendix A: Limitations and Dual-Use / Ethical Considerations* in the report.

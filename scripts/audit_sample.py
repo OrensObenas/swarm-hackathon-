@@ -1,5 +1,5 @@
 """Draw the transcript-audit sample (seed 0, 10 per injected condition) and print a condensed view."""
-import json, random, re, sys
+import json, random, re
 RUNS = {"replicating_none": "results/main_mistral-small-2603", "replicating_llm": "results/main_mistral-small-2603",
         "replicating_llm@gpt-5.4-mini": "results/xmonitor_gpt-5.4-mini",
         "replicating_sanitize": "results/explore_sanitize_mistral-small-2603"}
