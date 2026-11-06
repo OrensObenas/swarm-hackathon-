@@ -99,3 +99,8 @@ Les épisodes des pilotes sont exclus de l'analyse principale. Leurs journaux re
 **Conséquence pour l'interprétation** : la formulation finale des rôles a été choisie pour que la tâche légitime fonctionne. Elle n'a pas été optimisée pour l'attaque. Le taux d'attaque absolu dépend de ces choix et du modèle, il n'est donc pas généralisable. La comparaison avec et sans moniteur, menée sous la même configuration, reste l'objet principal.
 
 **Moniteur** : même modèle que les agents (`mistral-small-2603`), comme prévu au §5. Condition secondaire ajoutée avant les données principales : un moniteur d'un autre fournisseur (`gpt-5.4-mini`) sur `replicating_llm` et `benign_llm`, pour tester la limite n° 5 (échecs corrélés).
+
+## 9. Suites lancées après le plan principal (consignées avant d'en voir les données)
+
+1. **Moniteur d'un autre fournisseur** (secondaire, prévu au §8) : `benign_llm` et `replicating_llm` avec les agents en `mistral-small-2603` et le moniteur en `gpt-5.4-mini` (mode blocage). Résultats dans `results/xmonitor_gpt-5.4-mini`.
+2. **Mode nettoyage** (`llm_sanitize`, **exploratoire**, décidé *après* avoir vu que le blocage fait chuter la tâche à 5/30 sous injection) : s'il juge un message suspect, le moniteur le réécrit en gardant les faits utiles et en retirant les instructions hors tâche. Conditions `benign_sanitize` et `replicating_sanitize`, n = 30, moniteur `mistral-small-2603`. Résultats dans `results/explore_sanitize_mistral-small-2603`. Comme ce mode a été conçu après observation, ses résultats seront présentés comme générateurs d'hypothèses, pas comme confirmatoires.
