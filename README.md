@@ -5,6 +5,7 @@ Projet pour le Swarm Alignment Hackathon (Apart Research, nov. 2026). Petite exp
 - Question de recherche, critique, travaux proches et hypothèses pré-enregistrées : [`docs/research_plan.md`](docs/research_plan.md)
 - Plan du rapport : [`docs/report_outline.md`](docs/report_outline.md)
 - Annexe sur le double usage : [`docs/dual_use_appendix.md`](docs/dual_use_appendix.md)
+- **Résultats** : [`docs/results.md`](docs/results.md) ; figure `results/combined/fig_main.png`
 
 ## Installation
 
@@ -37,7 +38,7 @@ python analyze.py results/main
 |---|---|
 | `pi_swarm/world.py` | Environnement fictif, injection, outils simulés, étiquettes de vérité terrain |
 | `pi_swarm/episode.py` | Chaîne de 4 agents, protocole d'actions JSON, moniteur (`none`/`keyword`/`llm`), métriques par épisode |
-| `pi_swarm/backends.py` | Backend Anthropic (SDK officiel) et backend `mock` (tests uniquement) |
+| `pi_swarm/backends.py` | Backends Anthropic, OpenAI/Mistral (API compatible) et `mock` (tests uniquement) |
 | `run_experiment.py` | Conditions × essais, ordre aléatoire, journal JSONL, reprise après interruption |
 | `analyze.py` | Tableaux (IC de Wilson, test exact de Fisher) et figures |
 
@@ -48,3 +49,16 @@ python analyze.py results/main
 ## Honnêteté des résultats
 
 Les journaux produits avec `--backend mock` sont marqués `backend: "mock"`. `analyze.py` affiche alors un avertissement dans le tableau et sur les figures. Ces chiffres proviennent de probabilités fixées à la main et ne disent **rien** du comportement réel des LLM.
+
+## Reproduire les résultats rapportés
+
+```bash
+# clés : MISTRAL_API_KEY et OPENAI_API_KEY (dans la session cloud, elles sont injectées par le proxy)
+python run_experiment.py --backend mistral --model mistral-small-2603 --trials 30 --workers 6 --seed 1 --out results/main_mistral-small-2603
+python run_experiment.py --backend mistral --model mistral-small-2603 --monitor-backend openai --monitor-model gpt-5.4-mini \
+    --conditions benign_llm replicating_llm --trials 30 --workers 4 --seed 2 --out results/xmonitor_gpt-5.4-mini
+python run_experiment.py --backend mistral --model mistral-small-2603 --conditions benign_sanitize replicating_sanitize \
+    --trials 30 --workers 4 --seed 3 --out results/explore_sanitize_mistral-small-2603
+python analyze.py results/main_mistral-small-2603 results/xmonitor_gpt-5.4-mini results/explore_sanitize_mistral-small-2603 --out results/combined
+```
+Les sorties des LLM ne sont pas déterministes : une nouvelle exécution donnera des chiffres proches, pas identiques.

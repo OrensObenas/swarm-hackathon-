@@ -44,25 +44,31 @@ def fmt(p, lo, hi):
     return "n/a" if math.isnan(p) else f"{p:.2f} [{lo:.2f}, {hi:.2f}]"
 
 
-def load(d):
+def load(dirs):
     recs = {}
-    with open(os.path.join(d, "episodes.jsonl")) as f:
-        for line in f:
-            r = json.loads(line)
-            recs[r["config"]["episode_id"]] = r  # last write wins (resumed runs)
+    for d in dirs:
+        with open(os.path.join(d, "episodes.jsonl")) as f:
+            for line in f:
+                r = json.loads(line)
+                c = r["config"]
+                # Tag conditions whose monitor model differs from the agent model.
+                if c["monitor"] != "none" and c.get("monitor_model") and c["monitor_model"] != c.get("model"):
+                    c["condition"] = f"{c['condition']}@{c['monitor_model']}"
+                recs[(d, c["episode_id"])] = r  # last write wins (resumed runs)
     return list(recs.values())
 
 
-def main(d):
-    recs = load(d)
+def main(dirs, d):
+    recs = load(dirs)
     backends = sorted({r["config"].get("backend", "?") for r in recs})
     models = sorted({r["config"].get("model", "?") for r in recs})
     by = defaultdict(list)
     for r in recs:
         by[r["config"]["condition"]].append(r)
-    order = [c for c in ["benign_none", "benign_keyword", "benign_llm", "direct_none", "direct_llm",
-                         "replicating_none", "replicating_keyword", "replicating_llm",
-                         "benign_sanitize", "replicating_sanitize"] if c in by]
+    known = ["benign_none", "benign_keyword", "benign_llm", "benign_llm@gpt-5.4-mini", "benign_sanitize",
+             "direct_none", "direct_llm", "replicating_none", "replicating_keyword", "replicating_llm",
+             "replicating_llm@gpt-5.4-mini", "replicating_sanitize"]
+    order = [c for c in known if c in by] + sorted(c for c in by if c not in known)
 
     rows, lines = [], []
     if "mock" in backends:
@@ -195,7 +201,7 @@ def plot(d, rows, is_mock):
               ("downstream_hijack", "Downstream agent hijacked (primary)", "#eb6834"),
               ("task_success", "Legitimate task success", "#1baf7a"),
               ("flag_rate", "Monitor flag rate (messages)", "#eda100")]
-    fig, ax = plt.subplots(figsize=(7.2, 3.6), dpi=200, facecolor=surface)
+    fig, ax = plt.subplots(figsize=(max(7.2, 1.15 * len(rows)), 3.8), dpi=200, facecolor=surface)
     ax.set_facecolor(surface)
     x = range(len(rows))
     w = 0.2
@@ -209,7 +215,8 @@ def plot(d, rows, is_mock):
             p, _, hi = r[key]
             if not math.isnan(p):
                 ax.text(xi, hi + 0.015, f"{p:.2f}", ha="center", va="bottom", fontsize=5, color=ink2)
-    ax.set_xticks(list(x), [f"{r['condition']}\n(n={r['n_valid']})" for r in rows], fontsize=7, color=ink)
+    ax.set_xticks(list(x), [f"{r['condition'].replace('@', chr(10) + '@')}\n(n={r['n_valid']})" for r in rows],
+                  fontsize=6, color=ink)
     ax.set_ylim(0, 1.12)
     ax.set_ylabel("Proportion (95% Wilson CI)", fontsize=8, color=ink)
     ax.tick_params(axis="y", labelsize=7, colors=ink2)
@@ -250,4 +257,15 @@ def plot(d, rows, is_mock):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "results/main")
+    # analyze.py RUN_DIR                      -> writes into RUN_DIR
+    # analyze.py RUN_DIR [RUN_DIR ...] --out D -> pools several runs, writes into D
+    args = sys.argv[1:]
+    out = None
+    if "--out" in args:
+        i = args.index("--out")
+        out = args[i + 1]
+        args = args[:i] + args[i + 2:]
+    dirs = args or ["results/main"]
+    out = out or dirs[0]
+    os.makedirs(out, exist_ok=True)
+    main(dirs, out)
