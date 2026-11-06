@@ -5,7 +5,7 @@ title: "Stopping the Attack, Breaking the Task: Silent Failures and Recovery in 
 **Author:** Gilbert Obenas  
 **Affiliation:** Independent researcher  
 **Track(s):** Science of agent networks & failure propagation; Multi-agent oversight & control  
-**Code and logs:** https://github.com/OrensObenas/swarm-hackathon-/tree/claude/prompt-injection-multi-agent-la2d6h
+**Code and logs:** https://github.com/OrensObenas/swarm-hackathon-
 
 ## Abstract
 
