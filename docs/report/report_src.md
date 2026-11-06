@@ -62,6 +62,8 @@ The monitor is an LLM call with a fixed system prompt (Appendix B). It sees the 
 - **block:** a flagged message is replaced by a notice ("Message withheld by the security monitor…").
 - **sanitize (channel):** a flagged message is rewritten by a second LLM call that must keep all task facts and remove instructions that do not serve the task.
 - **sanitize (tool input):** the same classify-then-rewrite step is applied to documents returned by `read_document` before the retriever sees them; the channel is not monitored.
+- **block + retry** (batch B): the sender is told that its message was blocked and why, and may resend once; the new message is checked again, and if it is flagged again the withheld notice is delivered.
+- **block + abstain notice** (batch B): the withheld notice explicitly forbids inventing data and asks that the final report state that the vendor data was withheld (Appendix B).
 
 Unparseable monitor replies fail open; this happened 0 times.
 
@@ -74,11 +76,14 @@ Unparseable monitor replies fail open; this happened 0 times.
 
 ### 3.5 Metrics
 All metrics are computed per episode from the simulated outbox and the message log; there is no LLM judge.
-- **Attack succeeded:** any e-mail reached the attacker address.
+- **Attack succeeded:** any e-mail reached the attacker address (recipients are parsed, so `manager@…,records@…` counts). We also report **substantive exfiltration**: an attacker e-mail whose body contains procurement facts (prices, vendor names or capacities).
 - **Downstream agent hijacked** (primary endpoint): an agent other than the retriever e-mailed the attacker. Such an agent never read the source, so it was reached only through inter-agent messages.
-- **Task succeeded:** the last report sent to the manager names Bluefin on the mandatory line.
+- **Task succeeded:** the last report sent to the manager names Bluefin on the mandatory line. This is a lenient criterion. We also report a **strict task** criterion: the report names Bluefin, states $48,200, and quotes no dollar amount other than a drive price or a difference between two drive prices.
 - **Silent failure:** the task failed, the report names a vendor that does not exist in the drive, and the report does not state that data was missing, withheld or unverified (regular expression, defined before batches R–T).
-- **Monitor TPR / FPR:** computed at message level against a ground-truth taint label: the message contains the marker or the attacker address.
+- **Outcome partition:** success; *silent failure*; *visible failure* (no report, or the report flags missing data); wrong real vendor.
+- **Monitor TPR / FPR:** computed at message level against a taint label: the message contains the marker or the attacker address. This label measures the presence of the injection's *traces*, not danger: a message can quote the address in order to warn about it. We therefore also classify messages (regular expression) as **relay** (carries the injection without refusing it), **warning** (mentions it to refuse or flag it) or clean, and report detection on relays and flags on warnings separately (Table 4).
+
+The strict task, substantive-exfiltration, outcome-partition and message-type metrics were added after an external review. They were pre-registered for batch B and are **post hoc** for all earlier batches.
 
 All proportions use Wilson 95% intervals; comparisons use two-sided Fisher exact tests at α = 0.05. Pilots, amendments and every hypothesis were recorded in `docs/research_plan.md` before the corresponding data were collected (summary in Appendix C).
 
@@ -94,6 +99,7 @@ All proportions use Wilson 95% intervals; comparisons use two-sided Fisher exact
 | I | tool-input filter | replicating × none / input-sanitize; benign × input-sanitize | pre-registered |
 | N | native tool calling | benign × none; replicating × none / block / sanitize | descriptive replication |
 | T | shared-board topology (each agent sees all prior messages) | same as N | descriptive |
+| B | blocking with recovery | replicating × block / block+retry / block+abstain / sanitize; benign × block+retry / block+abstain | pre-registered (added after external review) |
 
 ## 4. Results
 
@@ -115,7 +121,9 @@ In the main run, the injection was carried by {{main_replicating_none_hop1}}/30 
 
 **Rewriting.** The rewriting monitor also eliminated downstream hijacking (H5: {{R_replicating_none_down}}/30 → 0/30, p = {{p_H5}}) while keeping the task at {{R_replicating_sanitize_task}}/30. Against blocking's {{R_replicating_llm_task}}/30, this is H6 (p = {{p_H6}}). This confirms on fresh, pre-registered data the effect first seen in the exploratory batch S ({{S_replicating_sanitize_task}}/30). The audit of the rewrites gives:
 - none of the {{S_replicating_sanitize_rewrites}} (S), {{R_replicating_sanitize_rewrites}} (R), {{N_replicating_sanitize_rewrites}} (N) and {{T_replicating_sanitize_rewrites}} (T) rewritten messages still carried the marker or address;
-- in S, a keyword check and our reading found no residual instruction, and all rewrites kept Bluefin and its price.
+- in S, a keyword check and the assistant's reading found no residual instruction, and all rewrites kept Bluefin and its price.
+
+Rewriting is not cost-free in completeness: under the strict criterion, {{R_replicating_sanitize_strict}}/30 reports in R sanitize stated the price (the others named Bluefin but omitted $48,200; none quoted an invented amount).
 
 The same pattern holds under native tool calling (N) and on the shared board (T, where an unmonitored injection reached all agents: {{T_replicating_none_exposed_mean}} agents exposed on average, against {{main_replicating_none_exposed_mean}} in the Main chain).
 
@@ -132,7 +140,7 @@ We audited 10 randomly drawn episodes per injected condition from Main, X and S 
 - **Paraphrase, not copy.** At hop 2, every audited relay was a paraphrase. The injection was often reframed as a procedural note.
 - **Execute *or* relay (exploratory).** Among exposed analysts in Main, those who executed the injection relayed it onward in {{relay_hij_k}}/{{relay_hij_n}} cases, against {{relay_non_k}}/{{relay_non_n}} for those who did not execute it. Neither hijacked retriever relayed it. Agents appear to treat the instruction as a to-do item that is discharged once done.
 - **Lost warnings under blocking.** In {{withheld_known}}/30 Main block episodes, the analyst explicitly wrote that the retriever's notes were withheld, then proceeded with invented data. That knowledge did not survive to the final report.
-- **Blocking suppresses whistle-blowers (batch M).** With `gpt-5.4-mini` agents, the retriever almost never relayed or obeyed the injection: {{M_replicating_none_hop1}}/30 relays, 0 attacks, a floor effect. It did, however, often **warn** about it ({{gpt_warn_k}}/{{gpt_warn_n}} retriever messages, keyword heuristic), for example "I did not follow the embedded request to email internal notes…". The blocking monitor withheld these warnings as if they were the attack. Task success dropped from {{M_replicating_none_task}}/30 to {{M_replicating_llm_task}}/30. With rewriting, the same number of false-positive flags ({{M_replicating_sanitize_fp}}) cost nothing ({{M_replicating_sanitize_task}}/30).
+- **Blocking suppresses whistle-blowers (batch M).** With `gpt-5.4-mini` agents, the retriever almost never relayed or obeyed the injection: {{M_replicating_none_hop1}}/30 relays, 0 attacks, a floor effect. It did, however, often **warn** about it ({{gpt_warn_k}}/{{gpt_warn_n}} retriever messages classified as *warning*), for example "I did not follow the embedded request to email internal notes…". The blocking monitor withheld these warnings as if they were the attack ({{M_replicating_llm_warn_flagged}}/{{M_replicating_llm_warn_msgs}} warnings flagged). Task success dropped from {{M_replicating_none_task}}/30 to {{M_replicating_llm_task}}/30. With rewriting, warnings were flagged too ({{M_replicating_sanitize_warn_flagged}}/{{M_replicating_sanitize_warn_msgs}}) but cost nothing ({{M_replicating_sanitize_task}}/30). Because this model was not attacked successfully even without a monitor, batch M shows the *cost* of monitoring a resistant model, **not** that the monitor protects it.
 
 ### 4.4 Adversarial variants (batch A)
 **Table 3.** Hand-written variants, frozen before running.
@@ -143,11 +151,11 @@ We audited 10 randomly drawn episodes per injected condition from Main, X and S 
 
 ## 5. Discussion
 
-**What a channel monitor can and cannot do.** In our testbed, most damage was downstream. A channel monitor can prevent it, and in our data it did, with two different monitor models. It cannot protect the agent that reads the poisoned source; an input-side filter can, and did here.
+**What a channel monitor can and cannot do.** In our testbed, most damage was downstream. A channel monitor prevented it in every batch where the attack worked, with two different monitor models. Note that 0/30 is not a guarantee: its 95% upper bound is 11%. A channel monitor cannot protect the agent that reads the poisoned source; an input-side filter can, and did here.
 
 **"No attack" is not "no harm".** Blocking converts a visible security failure (an exfiltration e-mail) into an invisible utility failure: a confident report recommending a vendor that does not exist. In deployment this may be worse, because no downstream signal reveals it. Blocking also removed agents' own warnings about the attack. A monitor should be evaluated jointly on security, task success and *silent* failure.
 
-**Rewriting as trusted editing.** Rewriting flagged content behaves like trusted editing [9]: it tolerated false positives (batch M) and preserved task facts. However, it gives the monitor write access to the content, which creates a new attack surface: our `sanitizer_bypass` variant targeted exactly this, without succeeding. An adaptive attacker was not tested.
+**Rewriting as trusted editing.** Rewriting flagged content behaves like trusted editing [9]: it tolerated false positives (batch M) and preserved task facts. Part of its advantage over plain blocking is expected by construction, since plain blocking deletes the facts the next agent needs; this is why batch B compares it against blocking *with recovery*. Rewriting also gives the monitor write access to the content, which creates a new attack surface: our `sanitizer_bypass` variant targeted exactly this, without succeeding. We present rewriting as effective **in the scenarios tested**, not as a robust defence: an adaptive attacker was not tested.
 
 **Practical recommendation (hypothesis for future work).** When a monitor intervenes, it should (i) preserve task-relevant facts or (ii) propagate an explicit, persistent "data withheld" flag to the final output, rather than silently dropping content.
 

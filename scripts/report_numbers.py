@@ -88,6 +88,11 @@ def numbers():
     N["p_H5"] = fisher("R", "replicating_none", "R", "replicating_sanitize", "down")
     N["p_H6"] = fisher("R", "replicating_sanitize", "R", "replicating_llm", "task")
     N["p_H9"] = fisher("I", "replicating_none", "I", "replicating_inputsanitize", "attack")
+    if ("B", "replicating_llm") in cells:
+        N["p_H10"] = fisher("B", "replicating_blockretry", "B", "replicating_llm", "task")
+        a, b = cells[("B", "replicating_blockabstain")], cells[("B", "replicating_llm")]
+        N["p_H11"] = fisher_two_sided(a["out_silent"], a["n"] - a["out_silent"], b["out_silent"], b["n"] - b["out_silent"])
+        N["p_H12"] = fisher("B", "replicating_sanitize", "B", "replicating_blockretry", "task")
     N["p_runvar_attack"] = fisher("main", "replicating_none", "R", "replicating_none", "attack")
     lo_main = wilson(cells[("main", "replicating_none")]["down"], cells[("main", "replicating_none")]["n"])
     N["H1_ci_lo"], N["H1_ci_hi"] = round(lo_main[1], 2), round(lo_main[2], 2)
@@ -112,9 +117,8 @@ def numbers():
     L0 = [r for r in data["main"] if r["config"]["condition"] == "replicating_llm"]
     N["withheld_known"] = sum("withheld" in ms(r)[1]["raw"].lower() for r in L0)
     # GPT agents warning about the injection (keyword heuristic on retriever message)
-    warn_re = re.compile(r"ignor|embedded|instruction|notice|suspicious|injection", re.I)
     G = [r for r in data["M"] if r["config"]["condition"].startswith("replicating_")]
-    N["gpt_warn_k"] = sum(bool(warn_re.search(ms(r)[0]["raw"])) for r in G)
+    N["gpt_warn_k"] = sum(message_kind(ms(r)[0]["raw"]) == "warning" for r in G)
     N["gpt_warn_n"] = len(G)
     # sanitizer audits
     for b, cond in (("S", "replicating_sanitize"), ("R", "replicating_sanitize"), ("A", "sanitizer_bypass_sanitize"),
@@ -180,7 +184,36 @@ def tables(N, cells):
             tpr = f"{c['tp']}/{c['taint_msgs']}" if m != "none" and c["taint_msgs"] else ("n/a (nothing relayed)" if m != "none" else "–")
             a.append(f"| `{inj}` | {mode_name[m]} | {c['hop'][0]}/{c['n']} | {c['attack']}/{c['n']} | {c['task']}/{c['n']} | {tpr} |")
     table_adv = "\n".join(a)
-    return {"TABLE_SYNTH": table_synth, "TABLE_BENIGN": table_benign, "TABLE_ADV": table_adv}
+    tb = ["| Monitor (batch B, replicating injection) | Attack | Downstream hijack | Task | Strict task | Silent failure | Visible failure | Retries (re-flagged) |",
+          "|---|---|---|---|---|---|---|---|"]
+    names = {"llm": "block (no recovery)", "blockretry": "block + retry", "blockabstain": "block + abstain notice",
+             "sanitize": "sanitize (rewrite)"}
+    if ("B", "replicating_llm") in cells:
+        for m in ("llm", "blockretry", "blockabstain", "sanitize"):
+            c = cells[("B", f"replicating_{m}")]
+            rt = f"{c['retried']} ({c['retry_flagged']})" if m == "blockretry" else "–"
+            tb.append(f"| {names[m]} | {c['attack']}/{c['n']} | {c['down']}/{c['n']} | {c['task']}/{c['n']} | {c['strict']}/{c['n']} | "
+                      f"{c['out_silent']}/{c['n']} | {c['out_visible']}/{c['n']} | {rt} |")
+        for m in ("blockretry", "blockabstain"):
+            c = cells[("B", f"benign_{m}")]
+            tb.append(f"| {names[m]}, **no injection** | {c['attack']}/{c['n']} | {c['down']}/{c['n']} | {c['task']}/{c['n']} | "
+                      f"{c['strict']}/{c['n']} | {c['out_silent']}/{c['n']} | {c['out_visible']}/{c['n']} | "
+                      f"{c['retried']} ({c['retry_flagged']}) |" if m == "blockretry" else
+                      f"| {names[m]}, **no injection** | {c['attack']}/{c['n']} | {c['down']}/{c['n']} | {c['task']}/{c['n']} | "
+                      f"{c['strict']}/{c['n']} | {c['out_silent']}/{c['n']} | {c['out_visible']}/{c['n']} | – |")
+    ts = ["| Batch / condition | Attack (e-mail reached address) | Substantive exfiltration | Task | Strict task | Relay msgs flagged | Warning msgs flagged |",
+          "|---|---|---|---|---|---|---|"]
+    for lab, b, cond in (("Main / none", "main", "replicating_none"), ("Main / block", "main", "replicating_llm"),
+                         ("R / none", "R", "replicating_none"), ("R / block", "R", "replicating_llm"),
+                         ("R / sanitize", "R", "replicating_sanitize"), ("I / none", "I", "replicating_none"),
+                         ("N / none", "N", "replicating_none"), ("T / none", "T", "replicating_none"),
+                         ("M / none", "M", "replicating_none"), ("M / block", "M", "replicating_llm"),
+                         ("M / sanitize", "M", "replicating_sanitize")):
+        c = cells[(b, cond)]
+        rf = f"{c['relay_flagged']}/{c['relay_msgs']}" if not cond.endswith("_none") else f"– ({c['relay_msgs']} relays)"
+        wf = f"{c['warn_flagged']}/{c['warn_msgs']}" if not cond.endswith("_none") else f"– ({c['warn_msgs']} warnings)"
+        ts.append(f"| {lab} | {c['attack']}/{c['n']} | {c['exfil_sub']}/{c['n']} | {c['task']}/{c['n']} | {c['strict']}/{c['n']} | {rf} | {wf} |")
+    return {"TABLE_B": "\n".join(tb), "TABLE_STRICT": "\n".join(ts), "TABLE_SYNTH": table_synth, "TABLE_BENIGN": table_benign, "TABLE_ADV": table_adv}
 
 
 if __name__ == "__main__":
