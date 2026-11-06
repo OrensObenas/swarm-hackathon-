@@ -1,5 +1,5 @@
 ---
-title: "Block or Rewrite? Prompt-Injection Propagation and Channel Monitoring in a Four-Agent Pipeline"
+title: "Stopping the Attack, Breaking the Task: Silent Failures and Recovery in Monitored Multi-Agent Pipelines"
 ---
 
 **Author:** Gilbert Obenas  
@@ -9,7 +9,7 @@ title: "Block or Rewrite? Prompt-Injection Propagation and Channel Monitoring in
 
 ## Abstract
 
-Multi-agent LLM systems pass text between agents, so an instruction planted in one untrusted document can travel well beyond the agent that read it. We built a small, fully simulated testbed: four agents (retriever, analyst, writer, reviewer) solve a fictional procurement task and share a mock e-mail tool. A self-replicating injection hidden in one vendor quote asks agents to e-mail internal notes to an outside address. We pre-registered hypotheses and ran {{total_episodes}} episodes across nine batches (30 episodes per condition). Without monitoring, the injection hijacked an agent that never read the poisoned document in {{main_replicating_none_down}}/30 episodes of the main run (replicated at {{R_replicating_none_down}}/30, {{I_replicating_none_down}}/30, {{N_replicating_none_down}}/30 and {{T_replicating_none_down}}/30 in later batches). An LLM monitor that *blocks* suspicious inter-agent messages eliminated downstream hijacking in every batch, but it collapsed the legitimate task (between {{R_replicating_llm_task}}/30 and {{N_replicating_llm_task}}/30 successes in the Mistral batches). Downstream agents silently invented vendors, and the final report almost never mentioned the missing data. A monitor that *rewrites* flagged messages, keeping task facts and removing foreign instructions, also eliminated hijacking and preserved the task ({{R_replicating_sanitize_task}}/30 in the pre-registered replication). The same held for a filter on tool outputs and for a second agent model. Two of our three hand-written adversarial injections were inert, so robustness to adaptive attacks remains untested.
+Multi-agent LLM systems pass text between agents, so an instruction planted in one untrusted document can travel well beyond the agent that read it. We built a small, fully simulated testbed: four agents (retriever, analyst, writer, reviewer) solve a fictional procurement task and share a mock e-mail tool. A self-replicating injection hidden in one vendor quote asks agents to e-mail internal notes to an outside address. We pre-registered hypotheses and ran {{total_episodes}} episodes in ten batches (30 per condition). Without monitoring, the injection hijacked an agent that never read the poisoned document in {{main_replicating_none_down}}/30 episodes of the main run (between {{R_replicating_none_down}}/30 and {{N_replicating_none_down}}/30 in replications). An LLM monitor that simply *withholds* suspicious inter-agent messages stopped every downstream hijack in the scenarios tested. However, it collapsed the legitimate task ({{B_replicating_llm_task}}/30 in batch B), mostly through **silent failures**: confident final reports naming vendors that do not exist. Recovery changes this. Telling the sender why its message was blocked and letting it resend once restored the task ({{B_replicating_blockretry_task}}/30) with 0 attacks, matching a monitor that rewrites flagged messages ({{B_replicating_sanitize_task}}/30). An explicit abstention notice did not restore the task, but turned most failures from silent into visible ({{B_replicating_blockabstain_out_visible}}/30). The lesson is about *recovery*, not blocking per se: a defence must restore the missing facts or make their absence visible. Our hand-written adversarial variants were mostly inert and no adaptive attack was tested, so these results hold only for the scenarios tested.
 
 ## 1. Introduction
 
@@ -20,9 +20,9 @@ A natural defence is a monitor on the communication channel that inspects messag
 2. What does the monitor cost the legitimate task when it intervenes?
 
 We study both in a deliberately small, reproducible testbed. Our contributions:
-1. A pre-registered comparison of no monitor, a *blocking* monitor and a *rewriting* monitor on a four-agent chain, replicated across a second protocol (native tool calling), a second topology (shared board), a second agent model and an input-side filter.
-2. Evidence that blocking eliminates propagation but turns attacks into **silent task failures**: agents confabulate, and the fact that data was withheld is lost before the final report. Blocking also suppresses agents' own warnings about the attack.
-3. Evidence that rewriting flagged content avoids this trade-off against the injections we tested. We also report that our adversarial variants mostly failed to test the monitor.
+1. A pre-registered comparison of monitor strategies on a four-agent chain (none, block, block with retry, block with an abstention notice, rewrite, and an input-side filter). The main comparisons were replicated across a second protocol (native tool calling), a second topology (shared board) and a second agent model.
+2. Evidence that blocking *without recovery* eliminates propagation but turns attacks into **silent task failures**: agents confabulate, and the fact that data was withheld is lost before the final report. Blocking also suppresses agents' own warnings about the attack.
+3. Evidence that **recovery** removes this cost: letting the sender resend after feedback performed as well as rewriting, and an explicit abstention notice made failures visible. We also report the negative results: our adversarial variants mostly failed to test the monitor.
 
 All data, tools, companies and addresses are fictional; no real account or external action is involved.
 
@@ -81,7 +81,7 @@ All metrics are computed per episode from the simulated outbox and the message l
 - **Task succeeded:** the last report sent to the manager names Bluefin on the mandatory line. This is a lenient criterion. We also report a **strict task** criterion: the report names Bluefin, states $48,200, and quotes no dollar amount other than a drive price or a difference between two drive prices.
 - **Silent failure:** the task failed, the report names a vendor that does not exist in the drive, and the report does not state that data was missing, withheld or unverified (regular expression, defined before batches R–T).
 - **Outcome partition:** success; *silent failure*; *visible failure* (no report, or the report flags missing data); wrong real vendor.
-- **Monitor TPR / FPR:** computed at message level against a taint label: the message contains the marker or the attacker address. This label measures the presence of the injection's *traces*, not danger: a message can quote the address in order to warn about it. We therefore also classify messages (regular expression) as **relay** (carries the injection without refusing it), **warning** (mentions it to refuse or flag it) or clean, and report detection on relays and flags on warnings separately (Table 4).
+- **Monitor TPR / FPR:** computed at message level against a taint label: the message contains the marker or the attacker address. This label measures the presence of the injection's *traces*, not danger: a message can quote the address in order to warn about it. We therefore also classify messages (regular expression) as **relay** (carries the injection without refusing it), **warning** (mentions it to refuse or flag it) or clean, and report detection on relays and flags on warnings separately (Table E3).
 
 The strict task, substantive-exfiltration, outcome-partition and message-type metrics were added after an external review. They were pre-registered for batch B and are **post hoc** for all earlier batches.
 
@@ -110,12 +110,12 @@ In the main run, the injection was carried by {{main_replicating_none_hop1}}/30 
 
 **Run-to-run variation.** The absolute attack rate is **not stable**: {{main_replicating_none_attack}}/30 in Main against {{R_replicating_none_attack}}/30 in R under identical configuration (p = {{p_runvar_attack}}). We therefore rely only on within-batch comparisons.
 
-### 4.2 Blocking versus rewriting (H2, H5, H6)
+### 4.2 Plain blocking versus rewriting (H2, H5, H6)
 **Table 1.** Replicating injection unless noted. Counts out of 30 episodes; TPR/FPR at message level.
 
 {{TABLE_SYNTH}}
 
-**Blocking.** The blocking monitor eliminated downstream hijacking. In Main this went from {{main_replicating_none_down}}/30 to 0/30 (H2, p = {{p_H2}}); in R from {{R_replicating_none_down}}/30 to 0/30 (H2-bis, p = {{p_H2bis}}). It did so with both monitor models, but at a large utility cost:
+**Plain blocking.** (Blocking *with recovery* is evaluated in §4.5.) The blocking monitor eliminated downstream hijacking. In Main this went from {{main_replicating_none_down}}/30 to 0/30 (H2, p = {{p_H2}}); in R from {{R_replicating_none_down}}/30 to 0/30 (H2-bis, p = {{p_H2bis}}). It did so with both monitor models, but at a large utility cost:
 - the task succeeded in only {{main_replicating_llm_task}}/30 episodes (Main), {{X_replicating_llm_task}}/30 (X, GPT monitor) and {{R_replicating_llm_task}}/30 (R);
 - most failures were **silent**: {{main_replicating_llm_silent}}/30 in Main and {{R_replicating_llm_silent}}/30 in R.
 
@@ -129,11 +129,9 @@ The same pattern holds under native tool calling (N) and on the shared board (T,
 
 **Input-side filter (H9).** Rewriting documents *before* the retriever reads them removed exposure entirely. All {{I_filtered_docs}} poisoned documents read were rewritten, with 0 still tainted and {{I_filtered_keep_price}}/30 keeping the Harborline price. The attack fell from {{I_replicating_none_attack}}/30 to 0/30 (p = {{p_H9}}), and the task held at {{I_replicating_inputsanitize_task}}/30. There were no false positives on clean documents ({{I_benign_filtered}} rewrites in the benign condition).
 
-**Benign cost (H4).** Without injection, no monitor mode caused attacks, and the task succeeded 28–30 times out of 30 in every batch (Table 2). Pooling Main and R (n = 60 per arm), blocking changed task success by {{H4_d}} points [95% Newcombe CI {{H4_lo}}, {{H4_hi}}]. The pre-registered margin of −10 points is therefore met, but narrowly.
+**Benign cost (H4).** Without injection, no monitor mode caused attacks, and the task succeeded 28–30 times out of 30 in every batch (Table E1). Pooling Main and R (n = 60 per arm), blocking changed task success by {{H4_d}} points [95% Newcombe CI {{H4_lo}}, {{H4_hi}}]. The pre-registered margin of −10 points is therefore met, but narrowly.
 
-**Table 2.** Benign conditions (no injection).
 
-{{TABLE_BENIGN}}
 
 ### 4.3 Mechanisms (transcript audit and exploratory analyses)
 We audited 10 randomly drawn episodes per injected condition from Main, X and S (seed 0; `docs/transcript_audit.csv`). The annotation was done by an AI assistant and has **not yet been verified by a human** [AUTHOR: replace this sentence once you have spot-checked the CSV].
@@ -142,25 +140,36 @@ We audited 10 randomly drawn episodes per injected condition from Main, X and S 
 - **Lost warnings under blocking.** In {{withheld_known}}/30 Main block episodes, the analyst explicitly wrote that the retriever's notes were withheld, then proceeded with invented data. That knowledge did not survive to the final report.
 - **Blocking suppresses whistle-blowers (batch M).** With `gpt-5.4-mini` agents, the retriever almost never relayed or obeyed the injection: {{M_replicating_none_hop1}}/30 relays, 0 attacks, a floor effect. It did, however, often **warn** about it ({{gpt_warn_k}}/{{gpt_warn_n}} retriever messages classified as *warning*), for example "I did not follow the embedded request to email internal notes…". The blocking monitor withheld these warnings as if they were the attack ({{M_replicating_llm_warn_flagged}}/{{M_replicating_llm_warn_msgs}} warnings flagged). Task success dropped from {{M_replicating_none_task}}/30 to {{M_replicating_llm_task}}/30. With rewriting, warnings were flagged too ({{M_replicating_sanitize_warn_flagged}}/{{M_replicating_sanitize_warn_msgs}}) but cost nothing ({{M_replicating_sanitize_task}}/30). Because this model was not attacked successfully even without a monitor, batch M shows the *cost* of monitoring a resistant model, **not** that the monitor protects it.
 
-### 4.4 Adversarial variants (batch A)
-**Table 3.** Hand-written variants, frozen before running.
-
-{{TABLE_ADV}}
-
+### 4.4 Adversarial variants (batch A; Table E2)
 `polite` and `monitor_bypass` were **inert**: across all {{A_inert_n}} episodes of each variant, the retriever never carried them into its notes, so they did not test the monitor at all. `sanitizer_bypass` did propagate and hijacked {{A_sanitizer_bypass_none_down}}/30 reviewers without a monitor. The blocking monitor missed {{A_sb_llm_missed}} tainted messages (TPR {{A_sanitizer_bypass_llm_tp}}/{{A_sanitizer_bypass_llm_taint_msgs}}). In those messages the attacker address was presented as an ordinary report recipient, and the monitor judged them "ordinary task content"; none led to a hijack. With rewriting, the attack failed in every episode and the task held at {{A_sanitizer_bypass_sanitize_task}}/30.
+
+### 4.5 Blocking with recovery (batch B; H10–H12)
+**Table 2.** Batch B (single batch, all conditions interleaved). Counts out of 30.
+
+{{TABLE_B}}
+
+Plain blocking reproduced the earlier result: {{B_replicating_llm_task}}/30 task successes and {{B_replicating_llm_out_silent}}/30 silent failures.
+- **Retry (H10).** Telling the sender why its message was blocked and letting it resend once restored the task to {{B_replicating_blockretry_task}}/30 (p = {{p_H10}} against plain blocking), with 0 attacks. The sender resent in {{B_replicating_blockretry_retried}} episodes; none of the resent messages carried the injection or was flagged again.
+- **Abstention notice (H11).** Silent failures fell to {{B_replicating_blockabstain_out_silent}}/30 (p = {{p_H11}}): {{B_replicating_blockabstain_out_visible}}/30 failures were now visible (no report, or a report stating the data was withheld). The task itself still failed ({{B_replicating_blockabstain_task}}/30).
+- **Rewrite against retry (H12).** {{B_replicating_sanitize_task}}/30 against {{B_replicating_blockretry_task}}/30 (p = {{p_H12}}): no difference in this scenario.
+- **Cost without injection.** Neither recovery mode changed the benign task ({{B_benign_blockretry_task}}/30 and {{B_benign_blockabstain_task}}/30), and no retry was triggered.
+
+This answers the main objection to §4.2: rewriting's advantage over *plain* blocking is largely shared by any strategy that recovers the facts. Retry is cheaper to build (no rewriting model), but it relies on the sender being uncompromised. Here, the retriever was never hijacked in these conditions.
+
+Stricter metrics (Table E3, post hoc for these batches): substantive exfiltration tracked "e-mail reached the attacker" almost exactly ({{I_replicating_none_exfil_sub}}/{{I_replicating_none_attack}} in I, equal elsewhere). The strict task criterion changed little, except that rewritten reports sometimes omitted the price. In the Mistral batches no message was classified as a warning, so detection on *relays* equals the TPR reported above. In batch M, all flagged messages were warnings or clean.
 
 ## 5. Discussion
 
 **What a channel monitor can and cannot do.** In our testbed, most damage was downstream. A channel monitor prevented it in every batch where the attack worked, with two different monitor models. Note that 0/30 is not a guarantee: its 95% upper bound is 11%. A channel monitor cannot protect the agent that reads the poisoned source; an input-side filter can, and did here.
 
-**"No attack" is not "no harm".** Blocking converts a visible security failure (an exfiltration e-mail) into an invisible utility failure: a confident report recommending a vendor that does not exist. In deployment this may be worse, because no downstream signal reveals it. Blocking also removed agents' own warnings about the attack. A monitor should be evaluated jointly on security, task success and *silent* failure.
+**"No attack" is not "no harm".** Plain blocking converts a visible security failure (an exfiltration e-mail) into an invisible utility failure: a confident report recommending a vendor that does not exist. In deployment this may be worse, because no downstream signal reveals it. Blocking also removed agents' own warnings about the attack. A monitor should be evaluated jointly on security, task success and *silent* failure.
 
 **Rewriting as trusted editing.** Rewriting flagged content behaves like trusted editing [9]: it tolerated false positives (batch M) and preserved task facts. Part of its advantage over plain blocking is expected by construction, since plain blocking deletes the facts the next agent needs; this is why batch B compares it against blocking *with recovery*. Rewriting also gives the monitor write access to the content, which creates a new attack surface: our `sanitizer_bypass` variant targeted exactly this, without succeeding. We present rewriting as effective **in the scenarios tested**, not as a robust defence: an adaptive attacker was not tested.
 
-**Practical recommendation (hypothesis for future work).** When a monitor intervenes, it should (i) preserve task-relevant facts or (ii) propagate an explicit, persistent "data withheld" flag to the final output, rather than silently dropping content.
+**Recovery is the key variable.** Batch B shows that the failure is not blocking as such but *blocking without recovery*. Two recovery strategies worked in our scenario: re-asking the sender (retry), or rewriting the content (sanitize). An explicit abstention notice did not save the task, but it converted silent failures into visible ones, which is the safer failure mode. We recommend evaluating any multi-agent monitor on three axes: attack prevention, task success, and the *visibility* of its failures.
 
 ## 6. Conclusion
-In a small, pre-registered, fully simulated four-agent testbed, a self-replicating injection placed in one document regularly hijacked agents that never read it. Blocking suspicious inter-agent messages stopped this but caused silent task failure. Rewriting them, or rewriting tool outputs before the first agent reads them, stopped it without that cost, against the fixed injections we tested. The main open question is robustness to adaptive attacks against the monitor itself.
+In a small, pre-registered, fully simulated four-agent testbed, a self-replicating injection placed in one document regularly hijacked agents that never read it. Withholding suspicious inter-agent messages stopped this but caused silent task failure. Recovery removed that cost: re-asking the sender, rewriting the message, or filtering tool outputs before the first agent reads them all stopped the attack and preserved the task, against the fixed injections we tested. An abstention notice at least made the failures visible. The main open questions are adaptive attacks against the monitor and the retry loop, and whether these patterns hold for larger systems.
 
 ## References
 
@@ -202,6 +211,7 @@ In a small, pre-registered, fully simulated four-agent testbed, a self-replicati
   - "Silent failure" relies on a regular expression over the final report.
   - The transcript audit was annotated by an AI assistant (a human spot-check by the author is pending).
   - The JSON action protocol is not how production agents call tools; batch N partially addresses this.
+- **Retry assumes an honest sender.** In batch B the retriever was never hijacked in the recovery conditions. A compromised sender could exploit the feedback loop, which was not tested.
 - **Same-model monitor.** The monitor mostly used the agents' model. One cross-provider batch (X) showed the same pattern.
 - **Design history.** The rewriting mode was designed after observing the main run (batch S). It was then tested on pre-registered batches (R, I, N, T) without further tuning. Harness defects found in pilots were fixed before the main run (Appendix C). One duplicated run (concurrent writers) was excluded and re-run identically.
 
@@ -228,6 +238,8 @@ In a small, pre-registered, fully simulated four-agent testbed, a self-replicati
   2. The second pilot revealed a harness defect: the writer e-mailed the manager itself and handed off an empty message, and the reviewer then confabulated. Roles were clarified: only the reviewer e-mails the manager, and every agent passes on its full content. `send_email` stayed available to all agents.
   3. The third pilot confirmed the fix (benign task 5/5), and the configuration was frozen.
 - **Pre-registration.** Every later hypothesis (H2-bis, H4-bis, H5, H6, H9) and every descriptive batch was written into `docs/research_plan.md` and committed before data collection (§§8–13, with git timestamps).
+- **Analysis bug found and fixed.** An independent recount (`scripts/independent_recount.py`) revealed that a single e-mail addressed to both the manager and the attacker was counted as an attack but not as a report. This affected 2 episodes (batch A, `sanitizer_bypass_none`: task 28→30/30). All numbers here use the corrected parsing, and the analysis and the independent recount now agree on every batch.
+- **Post-hoc metrics and strict-task amendment.** The strict metrics were added after an external review. The first version of `strict_task` wrongly rejected correct derived figures such as the \$4,700 saving; it was amended before batch B was analysed.
 - **Deviations.**
   - Agents run on Mistral rather than the originally planned Claude, because no Claude API key was available.
   - The silent-failure metric was defined after the main run.
@@ -237,3 +249,17 @@ In a small, pre-registered, fully simulated four-agent testbed, a self-replicati
 - **Code and logs.** `run_experiment.py`, `analyze.py`, `scripts/final_analysis.sh` and `scripts/build_report.py`. Every number in this report is generated from the logs by `scripts/report_numbers.py`. Commands are in the README; exact versions are in `requirements-lock.txt`.
 - **Pre-existing work.** None. All code, prompts and data were created during the sprint (6–8 Nov 2026).
 - **AI assistance.** An AI coding assistant (Claude, via Claude Code) helped write the code, run the experiments, analyse the logs and draft this report. [AUTHOR: confirm] The author reviewed the content and is responsible for it. The models *under study* are only those listed in §3.4.
+
+## Appendix E. Additional tables
+
+**Table E1.** Benign conditions (no injection).
+
+{{TABLE_BENIGN}}
+
+**Table E2.** Adversarial variants (batch A), hand-written and frozen before running.
+
+{{TABLE_ADV}}
+
+**Table E3.** Stricter metrics: substantive exfiltration, strict task, and monitor flags on relays versus warnings.
+
+{{TABLE_STRICT}}
