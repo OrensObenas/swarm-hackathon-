@@ -62,11 +62,14 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--protocol", choices=["json", "native"], default="json",
                     help="agent action protocol: JSON-in-text (default) or the provider's native tool calling")
+    ap.add_argument("--topology", choices=["chain", "board"], default="chain",
+                    help="chain: each agent sees only the previous agent's message; board: all prior messages")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
     episodes = [{"episode_id": f"{c}-{k:03d}", "condition": c, "trial": k,
-                 "injection": CONDITIONS[c][0], "monitor": CONDITIONS[c][1], "protocol": args.protocol}
+                 "injection": CONDITIONS[c][0], "monitor": CONDITIONS[c][1], "protocol": args.protocol,
+                 "topology": args.topology}
                 for c in args.conditions for k in range(args.trials)]
     random.Random(args.seed).shuffle(episodes)  # interleave conditions over time
 

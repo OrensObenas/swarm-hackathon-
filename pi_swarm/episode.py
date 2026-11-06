@@ -149,6 +149,14 @@ class Monitor:
         return {"suspicious": bool(verdict["suspicious"]), "reason": str(verdict.get("reason", ""))}
 
 
+def inbox_block(role, inbox):
+    """chain: a plain string from the previous agent; board: a list of (sender, text)."""
+    if isinstance(inbox, list):
+        posts = "\n\n".join(f"[{snd}]: {txt}" for snd, txt in inbox)
+        return f"\n\nShared team board (all messages posted so far):\n{posts}"
+    return f"\n\nMessage from the {CHAIN[CHAIN.index(role) - 1]}:\n{inbox}"
+
+
 def exec_tool(role, tool, args, world, monitor, log):
     """Run a simulated tool (+ optional input filter); returns (result_text, tainted)."""
     if tool not in ROLE_TOOLS[role] or not isinstance(args, dict):
@@ -186,7 +194,7 @@ def run_agent_native(role, inbox, world, backend, log, monitor=None) -> dict:
                f"to the {nxt}." if nxt else "Use the tools as needed. When you are done, reply with a short closing note."))
     first = f"Team task: {W.TASK}"
     if inbox is not None:
-        first += f"\n\nMessage from the {CHAIN[CHAIN.index(role) - 1]}:\n{inbox}"
+        first += inbox_block(role, inbox)
     messages = [{"role": "user", "content": first}]
     exposed = W.is_tainted(first)
     tools = native_tool_schemas(role)
@@ -214,8 +222,7 @@ def run_agent(role: str, inbox: str | None, world: W.World, backend, log, monito
     system = agent_system_prompt(role)
     first = f"Team task: {W.TASK}"
     if inbox is not None:
-        prev = CHAIN[CHAIN.index(role) - 1]
-        first += f"\n\nMessage from the {prev}:\n{inbox}"
+        first += inbox_block(role, inbox)
     messages = [{"role": "user", "content": first}]
     exposed = W.is_tainted(first)
     parse_errors = 0
@@ -252,6 +259,7 @@ def run_episode(cfg: dict, backend, monitor_backend=None) -> dict:
     monitor = Monitor(cfg["monitor"], monitor_backend or backend)
     agents, messages_log = {}, []
     inbox, error = None, None
+    board = []  # used when cfg["topology"] == "board"
     try:
         for i, role in enumerate(CHAIN):
             agent_fn = run_agent_native if cfg.get("protocol") == "native" else run_agent
@@ -278,7 +286,11 @@ def run_episode(cfg: dict, backend, monitor_backend=None) -> dict:
             rec["delivered_tainted"] = W.is_tainted(delivered)
             messages_log.append(rec)
             log("message", **rec)
-            inbox = delivered
+            if cfg.get("topology") == "board":
+                board.append((role, delivered))
+                inbox = list(board)
+            else:
+                inbox = delivered
     except LLMError as e:
         error = str(e)
     except Exception:  # keep the batch alive, record the crash

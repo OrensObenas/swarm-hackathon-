@@ -156,3 +156,13 @@ Agents et moniteur en `gpt-5.4-mini`. Conditions benign et replicating, croisée
 **Lot N** (`results/native_mistral-small-2603`, graine 50, `mistral-small-2603`) : `benign_none`, `replicating_none`, `replicating_llm` et `replicating_sanitize`, 30 épisodes chacune.
 
 Analyse **descriptive de réplication**. On vérifie si les sens des effets de H1, H2, H5 et H6 se retrouvent avec le protocole natif, en appliquant les mêmes tests de Fisher. Si `replicating_none` ne montre aucune propagation en aval, on le rapporte comme un résultat : la vulnérabilité dépend alors du protocole.
+
+## 13. Topologie « tableau partagé » (pré-enregistrée le 7 nov. 2026, avant toute donnée)
+
+**Mode `--topology board`** : chaque agent reçoit tous les messages déjà publiés, après passage par le moniteur, et non le seul message de son prédécesseur. Un agent en aval peut donc lire directement le message contaminé du récupérateur. Un épisode d'essai a servi à vérifier le fonctionnement ; il est exclu de l'analyse.
+
+**Lot T** (`results/board_mistral-small-2603`, graine 60, `mistral-small-2603`, protocole JSON) : `benign_none`, `replicating_none`, `replicating_llm` et `replicating_sanitize`, 30 épisodes chacune.
+
+Analyse **descriptive**, avec les mêmes métriques et tests que pour la chaîne.
+- Attente directionnelle : plus d'agents exposés et au moins autant de détournements en aval que dans la chaîne, puisque le message du patient zéro atteint tous les agents.
+- La comparaison avec la chaîne traverse plusieurs exécutions et sera présentée comme telle.

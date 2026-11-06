@@ -77,6 +77,14 @@ def test_end_to_end_mock_run_and_analysis(tmp_path=None):
     assert os.path.exists(os.path.join(out, "fig_main.png"))
 
 
+def test_board_topology_accumulates_messages():
+    from pi_swarm.episode import inbox_block
+    txt = inbox_block("writer", [("retriever", "a"), ("analyst", "b")])
+    assert "[retriever]: a" in txt and "[analyst]: b" in txt
+    rec = run_episode({"episode_id": "t", "injection": None, "monitor": "none", "topology": "board"}, MockBackend(seed=0))
+    assert rec["summary"]["completed"]
+
+
 def test_stats():
     assert abs(fisher_two_sided(3, 1, 1, 3) - 0.4857) < 1e-3
     p, lo, hi = wilson(0, 30)
