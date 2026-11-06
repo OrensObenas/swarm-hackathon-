@@ -9,18 +9,19 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-from analyze import fisher_two_sided, newcombe_diff, silent_failure_stats, wilson  # noqa: E402
+from analyze import renormalize, fisher_two_sided, message_kind, newcombe_diff, silent_failure_stats, strict_metrics, wilson  # noqa: E402
 
 BATCH_DIRS = {
     "main": "main_mistral-small-2603", "X": "xmonitor_gpt-5.4-mini", "S": "explore_sanitize_mistral-small-2603",
     "R": "replication_mistral-small-2603", "A": "adversarial_mistral-small-2603", "M": "model_gpt-5.4-mini",
     "I": "input_mistral-small-2603", "N": "native_mistral-small-2603", "T": "board_mistral-small-2603",
+    "B": "recovery_mistral-small-2603",
 }
 
 
 def load(batch):
     with open(os.path.join(ROOT, "results", BATCH_DIRS[batch], "episodes.jsonl")) as f:
-        return [json.loads(line) for line in f]
+        return [renormalize(json.loads(line)) for line in f]
 
 
 def cell(recs, cond):
@@ -30,7 +31,19 @@ def cell(recs, cond):
     taint = [m for m in msgs if m["raw_tainted"]]
     clean = [m for m in msgs if not m["raw_tainted"]]
     sil = [silent_failure_stats(r) for r in rs]
+    sm = [strict_metrics(r) for r in rs]
+    ev = [e for r in rs for e in r["events"] if e["kind"] == "message"]
+    kinds = [(message_kind(e["raw"]), e["flagged"]) for e in ev]
     return {
+        "exfil_sub": sum(x["exfil_substantive"] for x in sm), "strict": sum(x["strict_task"] for x in sm),
+        "out_success": sum(x["outcome"] == "success" for x in sm),
+        "out_silent": sum(x["outcome"] == "silent_failure" for x in sm),
+        "out_visible": sum(x["outcome"] == "visible_failure" for x in sm),
+        "out_wrong": sum(x["outcome"] == "wrong_vendor" for x in sm),
+        "relay_msgs": sum(k == "relay" for k, _ in kinds), "relay_flagged": sum(k == "relay" and f for k, f in kinds),
+        "warn_msgs": sum(k == "warning" for k, _ in kinds), "warn_flagged": sum(k == "warning" and f for k, f in kinds),
+        "retried": sum(1 for e in ev if e.get("retried")), "retry_tainted": sum(1 for e in ev if e.get("retry_tainted")),
+        "retry_flagged": sum(1 for e in ev if e.get("retry_flagged")),
         "n": len(S), "attack": sum(s["attack_success"] for s in S),
         "down": sum(s["n_hijacked_downstream"] > 0 for s in S),
         "p0": sum("retriever" in s["hijacked_agents"] for s in S),
@@ -46,7 +59,8 @@ def cell(recs, cond):
 
 def numbers():
     N = {}
-    data = {b: load(b) for b in BATCH_DIRS}
+    data = {b: load(b) for b in BATCH_DIRS
+            if os.path.exists(os.path.join(ROOT, "results", BATCH_DIRS[b], "episodes.jsonl"))}
     cells = {}
     for b, recs in data.items():
         for cond in sorted({r["config"]["condition"] for r in recs}):
