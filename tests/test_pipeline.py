@@ -64,6 +64,19 @@ def test_input_monitor_runs_on_tool_results():
     assert all(not m["flagged"] for m in rec["summary"]["messages"])  # channel not monitored
 
 
+def test_end_to_end_mock_run_and_analysis(tmp_path=None):
+    import subprocess, tempfile
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out = tmp_path or tempfile.mkdtemp()
+    out = str(out)
+    subprocess.run([sys.executable, "run_experiment.py", "--backend", "mock", "--trials", "3", "--out", out,
+                    "--conditions", "benign_none", "replicating_llm", "polite_sanitize", "replicating_inputsanitize"],
+                   cwd=root, check=True, capture_output=True)
+    res = subprocess.run([sys.executable, "analyze.py", out], cwd=root, check=True, capture_output=True, text=True)
+    assert "SIMULATED BACKEND" in res.stdout
+    assert os.path.exists(os.path.join(out, "fig_main.png"))
+
+
 def test_stats():
     assert abs(fisher_two_sided(3, 1, 1, 3) - 0.4857) < 1e-3
     p, lo, hi = wilson(0, 30)
