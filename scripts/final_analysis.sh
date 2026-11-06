@@ -10,4 +10,5 @@ for d in replication_mistral-small-2603 adversarial_mistral-small-2603 model_gpt
 done
 # H4-bis: pooled benign arms (main + replication), n = 60 per arm
 $A results/main_mistral-small-2603 results/replication_mistral-small-2603 --out results/pooled_benign_main_replication >/dev/null
+python3 scripts/overview_figure.py
 echo done
