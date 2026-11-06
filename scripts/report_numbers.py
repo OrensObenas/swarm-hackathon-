@@ -4,7 +4,6 @@ Returns a flat dict used to fill {placeholders} in docs/report/report_src.md, pl
 markdown tables. Nothing here is typed by hand: if a log changes, the report changes."""
 import json
 import os
-import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

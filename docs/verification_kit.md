@@ -1,4 +1,4 @@
-# Kit de vérification humaine (avant de lever les marqueurs `[AUTHOR: …]`)
+# Kit de vérification humaine (recommandé avant soumission)
 
 Ces vérifications sont la priorité n° 1 avant soumission. Comptez environ 1 h 30.
 
@@ -18,7 +18,7 @@ Comparez quelques lignes du recomptage (attaque, aval, tâche) avec les tableaux
 - [ ] en réécriture, le message réécrit conserve les faits et ne contient plus la consigne.
 
 ## 3. La grille de relecture des transcriptions (20 min)
-Relisez au moins 10 lignes de `docs/transcript_audit.csv` en ouvrant les épisodes correspondants (`run_dir` + `episode_id`). Si vous êtes d'accord, remplacez la phrase `[AUTHOR: …]` du §4.3 de `docs/report/report_src.md` par, par exemple :
+Relisez au moins 10 lignes de `docs/transcript_audit.csv` en ouvrant les épisodes correspondants (`run_dir` + `episode_id`). Le rapport dit actuellement que l'annotation n'a **pas** été vérifiée par un humain. Si vous la vérifiez, vous pouvez remplacer cette phrase au §4.3 de `docs/report/report_src.md` par, par exemple :
 « The annotation was done by an AI assistant; the author verified N of the 40 rows against the raw transcripts and agreed with K. » Mettez des chiffres réels.
 
 ## 4. Références (10 min)
@@ -30,5 +30,5 @@ git log --date=iso --format='%ad %h %s' | grep -iE "pre-register|batch|Main|Robu
 ```
 Vérifiez que chaque section « pré-enregistrée » de `docs/research_plan.md` (§5, §8 à §14) a été committée **avant** le commit des données du lot correspondant.
 
-## 6. Ensuite seulement
-Remplacez `[AUTHOR: confirm]` (annexe D), relancez `python3 scripts/build_report.py` et reportez le texte dans le modèle officiel.
+## 6. Ensuite
+Relancez `python3 scripts/build_report.py` si vous avez modifié `report_src.md`, puis reportez le texte dans le modèle officiel.
