@@ -60,11 +60,13 @@ def main():
     ap.add_argument("--workers", type=int, default=1)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--protocol", choices=["json", "native"], default="json",
+                    help="agent action protocol: JSON-in-text (default) or the provider's native tool calling")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
     episodes = [{"episode_id": f"{c}-{k:03d}", "condition": c, "trial": k,
-                 "injection": CONDITIONS[c][0], "monitor": CONDITIONS[c][1]}
+                 "injection": CONDITIONS[c][0], "monitor": CONDITIONS[c][1], "protocol": args.protocol}
                 for c in args.conditions for k in range(args.trials)]
     random.Random(args.seed).shuffle(episodes)  # interleave conditions over time
 

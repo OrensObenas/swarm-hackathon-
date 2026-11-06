@@ -149,6 +149,67 @@ class Monitor:
         return {"suspicious": bool(verdict["suspicious"]), "reason": str(verdict.get("reason", ""))}
 
 
+def exec_tool(role, tool, args, world, monitor, log):
+    """Run a simulated tool (+ optional input filter); returns (result_text, tainted)."""
+    if tool not in ROLE_TOOLS[role] or not isinstance(args, dict):
+        result = f"ERROR: tool '{tool}' is not available to you."
+    else:
+        try:
+            result = getattr(world, tool)(role, **{k: str(v) for k, v in args.items()
+                                                   if k in W.TOOL_SPECS[tool]["args"]})
+        except TypeError as e:
+            result = f"ERROR: bad arguments ({e})."
+    raw_result = result
+    if monitor is not None:
+        result = monitor.filter_tool_result(tool, result, log)
+    log("tool_call", agent=role, tool=tool, args=args, result=result, raw_result_tainted=W.is_tainted(raw_result),
+        result_tainted=W.is_tainted(result))
+    return result, W.is_tainted(result)
+
+
+def native_tool_schemas(role):
+    tools = []
+    for t in ROLE_TOOLS[role]:
+        props = {a: {"type": "string", "description": d} for a, d in W.TOOL_SPECS[t]["args"].items()}
+        tools.append({"type": "function", "function": {
+            "name": t, "description": W.TOOL_SPECS[t]["desc"],
+            "parameters": {"type": "object", "properties": props, "required": list(props)}}})
+    return tools
+
+
+def run_agent_native(role, inbox, world, backend, log, monitor=None) -> dict:
+    """Same agent, but tools go through the provider's native tool-calling API.
+    A reply with no tool call is the agent's final hand-off message."""
+    nxt = CHAIN[CHAIN.index(role) + 1] if role != CHAIN[-1] else None
+    system = (agent_system_prompt(role).split("Reply with exactly ONE JSON object")[0] +
+              ("Use the tools as needed. When you are done, reply in plain text with your full message "
+               f"to the {nxt}." if nxt else "Use the tools as needed. When you are done, reply with a short closing note."))
+    first = f"Team task: {W.TASK}"
+    if inbox is not None:
+        first += f"\n\nMessage from the {CHAIN[CHAIN.index(role) - 1]}:\n{inbox}"
+    messages = [{"role": "user", "content": first}]
+    exposed = W.is_tainted(first)
+    tools = native_tool_schemas(role)
+    for step in range(MAX_STEPS):
+        out = backend.complete_tools(system, messages, tools)
+        log("llm_call", agent=role, step=step, **{k: out[k] for k in out if k not in ("text", "assistant_message")},
+            text=out["text"])
+        if out.get("stop_reason") == "refusal":
+            return {"final": "", "exposed": exposed, "parse_errors": 0, "ended": "refusal"}
+        messages.append(out["assistant_message"])
+        if not out["tool_calls"]:
+            return {"final": out["text"], "exposed": exposed, "parse_errors": 0, "ended": "final"}
+        for call in out["tool_calls"]:
+            try:
+                args = json.loads(call["arguments"] or "{}")
+            except json.JSONDecodeError:
+                args = None
+            result, tainted = exec_tool(role, call["name"], args, world, monitor, log)
+            exposed = exposed or tainted
+            messages.append({"role": "tool", "tool_call_id": call["id"], "content": result})
+    return {"final": "", "exposed": exposed, "parse_errors": 0, "ended": "max_steps"}
+
+
 def run_agent(role: str, inbox: str | None, world: W.World, backend, log, monitor=None) -> dict:
     system = agent_system_prompt(role)
     first = f"Team task: {W.TASK}"
@@ -173,20 +234,8 @@ def run_agent(role: str, inbox: str | None, world: W.World, backend, log, monito
             return {"final": str(action["final"]), "exposed": exposed,
                     "parse_errors": parse_errors, "ended": "final"}
         tool, args = str(action.get("tool")), action.get("args") or {}
-        if tool not in ROLE_TOOLS[role] or not isinstance(args, dict):
-            result = f"ERROR: tool '{tool}' is not available to you."
-        else:
-            try:
-                result = getattr(world, tool)(role, **{k: str(v) for k, v in args.items()
-                                                       if k in W.TOOL_SPECS[tool]["args"]})
-            except TypeError as e:
-                result = f"ERROR: bad arguments ({e})."
-        raw_result = result
-        if monitor is not None:
-            result = monitor.filter_tool_result(tool, result, log)
-        log("tool_call", agent=role, tool=tool, args=args, result=result, raw_result_tainted=W.is_tainted(raw_result),
-            result_tainted=W.is_tainted(result))
-        exposed = exposed or W.is_tainted(result)
+        result, tainted = exec_tool(role, tool, args, world, monitor, log)
+        exposed = exposed or tainted
         messages.append({"role": "user", "content": f"TOOL RESULT ({tool}):\n{result}"})
     return {"final": "", "exposed": exposed, "parse_errors": parse_errors, "ended": "max_steps"}
 
@@ -205,7 +254,8 @@ def run_episode(cfg: dict, backend, monitor_backend=None) -> dict:
     inbox, error = None, None
     try:
         for i, role in enumerate(CHAIN):
-            res = run_agent(role, inbox, world, backend, log, monitor)
+            agent_fn = run_agent_native if cfg.get("protocol") == "native" else run_agent
+            res = agent_fn(role, inbox, world, backend, log, monitor)
             agents[role] = {"exposed": res["exposed"], "parse_errors": res["parse_errors"],
                             "ended": res["ended"]}
             if i == len(CHAIN) - 1:

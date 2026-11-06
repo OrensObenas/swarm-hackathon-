@@ -98,6 +98,33 @@ class OpenAICompatBackend:
         }
 
 
+    def complete_tools(self, system: str, messages: list[dict], tools: list[dict]) -> dict:
+        t0 = time.time()
+        try:
+            resp = self.client.chat.completions.create(
+                model=self.model, messages=[{"role": "system", "content": system}] + messages,
+                tools=tools, tool_choice="auto")
+        except self._openai.APIStatusError as e:
+            raise LLMError(f"API status {e.status_code}: {e}") from e
+        except self._openai.APIConnectionError as e:
+            raise LLMError(f"connection error: {e}") from e
+        choice = resp.choices[0]
+        msg = choice.message
+        calls = [{"id": c.id, "name": c.function.name, "arguments": c.function.arguments}
+                 for c in (msg.tool_calls or [])]
+        assistant = {"role": "assistant", "content": msg.content or ""}
+        if calls:
+            assistant["tool_calls"] = [{"id": c["id"], "type": "function",
+                                        "function": {"name": c["name"], "arguments": c["arguments"]}} for c in calls]
+        return {
+            "text": msg.content or "", "tool_calls": calls, "assistant_message": assistant,
+            "stop_reason": "refusal" if choice.finish_reason == "content_filter" else choice.finish_reason,
+            "input_tokens": getattr(resp.usage, "prompt_tokens", 0) or 0,
+            "output_tokens": getattr(resp.usage, "completion_tokens", 0) or 0,
+            "latency_s": round(time.time() - t0, 2),
+        }
+
+
 class MockBackend:
     """Rule-based fake agents/monitor. FOR PIPELINE TESTING ONLY."""
 
