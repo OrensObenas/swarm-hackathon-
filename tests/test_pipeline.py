@@ -56,6 +56,14 @@ def test_perfect_monitor_stops_downstream_spread():
     assert s["carriers_delivered"] == []
 
 
+def test_input_monitor_runs_on_tool_results():
+    mb = MockBackend(seed=2, p_comply=1.0, p_relay=1.0)
+    mb.monitor_tpr, mb.monitor_fpr = 1.0, 0.0
+    rec = run_episode({"episode_id": "t", "injection": "replicating", "monitor": "input_sanitize"}, mb)
+    assert any(e["kind"] == "input_filter" for e in rec["events"])
+    assert all(not m["flagged"] for m in rec["summary"]["messages"])  # channel not monitored
+
+
 def test_stats():
     assert abs(fisher_two_sided(3, 1, 1, 3) - 0.4857) < 1e-3
     p, lo, hi = wilson(0, 30)

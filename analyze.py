@@ -71,7 +71,7 @@ def fmt(p, lo, hi):
 
 
 INJ_ORDER = ["benign", "direct", "replicating", "polite", "monitor_bypass", "sanitizer_bypass"]
-MON_ORDER = ["none", "keyword", "llm", "sanitize"]
+MON_ORDER = ["none", "keyword", "llm", "sanitize", "inputsanitize"]
 
 
 def condition_sort_key(c):
