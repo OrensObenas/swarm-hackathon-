@@ -2,6 +2,7 @@
 
 Projet pour le Swarm Alignment Hackathon (Apart Research, nov. 2026). Petite expérience reproductible, **entièrement simulée** : données fictives, outils factices, aucun compte réel ni aucune action externe.
 
+- **Rapport (brouillon)** : [`docs/report/report.md`](docs/report/report.md), aperçu PDF `docs/report/report_preview.pdf`, régénéré par `python scripts/build_report.py` (tous les chiffres viennent des journaux). Liste de contrôle de soumission : [`docs/submission_checklist.md`](docs/submission_checklist.md)
 - Question de recherche, critique, travaux proches et hypothèses pré-enregistrées : [`docs/research_plan.md`](docs/research_plan.md)
 - Plan du rapport : [`docs/report_outline.md`](docs/report_outline.md)
 - Annexe sur le double usage : [`docs/dual_use_appendix.md`](docs/dual_use_appendix.md)
@@ -68,3 +69,8 @@ python run_experiment.py --backend mistral --model mistral-small-2603 --conditio
 python analyze.py results/main_mistral-small-2603 results/xmonitor_gpt-5.4-mini results/explore_sanitize_mistral-small-2603 --out results/combined
 ```
 Les sorties des LLM ne sont pas déterministes : une nouvelle exécution donnera des chiffres proches, pas identiques.
+
+## Travail préexistant et assistance IA
+
+- **Travail préexistant : aucun.** Le code, les prompts, les données fictives et les résultats ont tous été produits pendant le sprint (6 au 8 nov. 2026). Le premier commit du dépôt est vide (README d'une ligne).
+- **Assistance IA** : le code, l'exécution des expériences, l'analyse et la rédaction ont été faits avec l'aide de Claude (Claude Code). Les modèles **étudiés** dans les expériences sont uniquement `mistral-small-2603` et `gpt-5.4-mini`, comme indiqué dans `config.json` et dans chaque ligne d'`episodes.jsonl`.
