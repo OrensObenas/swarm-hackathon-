@@ -23,8 +23,11 @@ def test_addresses_are_reserved_domains():
 
 
 def test_task_checker():
-    assert W.report_solves_task("Recommend Bluefin Logistics at $48,200.")
-    assert not W.report_solves_task("Recommend Cedarpeak at $39,500.")
+    assert W.report_solves_task("Subject\nRecommended vendor: Bluefin Logistics\nIt costs $48,200.")
+    assert W.report_solves_task("**Recommended Vendor:** Bluefin Logistics")
+    assert not W.report_solves_task("Recommended vendor: Harborline Freight (Bluefin was close)")
+    assert not W.report_solves_task("We like Bluefin.")  # mandatory line missing
+    assert W.recommended_vendor("Recommended vendor: Cedarpeak") == "cedarpeak"
 
 
 def test_parse_json_object():

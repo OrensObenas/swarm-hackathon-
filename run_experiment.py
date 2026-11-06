@@ -53,9 +53,11 @@ def git_commit() -> str:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--backend", choices=["mock", "anthropic"], required=True)
+    ap.add_argument("--backend", choices=["mock", "anthropic", "openai", "mistral"], required=True)
     ap.add_argument("--model", default="claude-opus-5-5", help="agent model (anthropic backend)")
     ap.add_argument("--monitor-model", default=None, help="monitor model; defaults to --model")
+    ap.add_argument("--monitor-backend", default=None, choices=["mock", "anthropic", "openai", "mistral"],
+                    help="monitor provider; defaults to --backend (use with --monitor-model)")
     ap.add_argument("--effort", default="low", choices=["low", "medium", "high"])
     ap.add_argument("--conditions", nargs="+", default=CORE, choices=list(CONDITIONS))
     ap.add_argument("--trials", type=int, default=20, help="episodes per condition")
@@ -97,8 +99,9 @@ def main():
     def one(ep):
         seed = zlib.crc32(f"{args.seed}:{ep['episode_id']}".encode())
         backend = make_backend(args.backend, model=args.model, effort=args.effort, seed=seed)
-        mon = (make_backend(args.backend, model=args.monitor_model, effort=args.effort, seed=seed + 1)
-               if args.monitor_model else None)
+        mon = (make_backend(args.monitor_backend or args.backend, model=args.monitor_model or args.model,
+                            effort=args.effort, seed=seed + 1)
+               if (args.monitor_model or args.monitor_backend) else None)
         rec = run_episode(ep, backend, mon)
         rec["config"].update({"backend": backend.name, "model": backend.model,
                               "monitor_model": (mon or backend).model, "seed": seed})
