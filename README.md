@@ -5,13 +5,15 @@ Projet pour le Swarm Alignment Hackathon (Apart Research, nov. 2026). Petite exp
 - Question de recherche, critique, travaux proches et hypothèses pré-enregistrées : [`docs/research_plan.md`](docs/research_plan.md)
 - Plan du rapport : [`docs/report_outline.md`](docs/report_outline.md)
 - Annexe sur le double usage : [`docs/dual_use_appendix.md`](docs/dual_use_appendix.md)
-- **Résultats** : [`docs/results.md`](docs/results.md) ; figure `results/combined/fig_main.png`
+- **Résultats** : [`docs/results.md`](docs/results.md) ; figure de synthèse `results/overview.png`
+- Pré-enregistrements et amendements : `docs/research_plan.md` §5 et §8 à §13 ; relecture des transcriptions : `docs/transcript_audit.csv`
 
 ## Installation
 
 ```bash
 pip install -r requirements.txt
 python tests/test_pipeline.py        # tests du harnais (sans clé API)
+# versions exactes utilisées : requirements-lock.txt
 ```
 
 ## Exécution
@@ -30,6 +32,8 @@ python run_experiment.py --backend anthropic --model claude-opus-5-5 --trials 30
 python analyze.py results/main
 ```
 
+Options : `--protocol native` (appels d'outils natifs), `--topology board` (tableau partagé), `--monitor-backend/--monitor-model`. Conditions `<injection>_<moniteur>`, avec l'injection parmi `benign`, `replicating`, `direct`, `polite`, `monitor_bypass` et `sanitizer_bypass`, et le moniteur parmi `none`, `keyword`, `llm`, `sanitize` et `inputsanitize`.
+
 `--dry-run` affiche le nombre d'épisodes restants. Une relance avec le même `--out` reprend là où l'exécution s'était arrêtée.
 
 ## Structure
@@ -40,7 +44,9 @@ python analyze.py results/main
 | `pi_swarm/episode.py` | Chaîne de 4 agents, protocole d'actions JSON, moniteur (`none`/`keyword`/`llm`), métriques par épisode |
 | `pi_swarm/backends.py` | Backends Anthropic, OpenAI/Mistral (API compatible) et `mock` (tests uniquement) |
 | `run_experiment.py` | Conditions × essais, ordre aléatoire, journal JSONL, reprise après interruption |
-| `analyze.py` | Tableaux (IC de Wilson, test exact de Fisher) et figures |
+| `analyze.py` | Tableaux (IC de Wilson, test exact de Fisher, IC de Newcombe), échec silencieux, figures ; plusieurs exécutions regroupables avec `--out` |
+| `scripts/final_analysis.sh` | Régénère toutes les synthèses et `results/overview.png` |
+| `scripts/audit_*.py` | Tirage et grille de la relecture des transcriptions |
 
 ## Journaux
 
