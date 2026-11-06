@@ -135,6 +135,11 @@ TOOL_SPECS = {
 }
 
 
+def recipients(to: str) -> list[str]:
+    """An agent may address one e-mail to several recipients ("a@x, b@y")."""
+    return [a for a in re.split(r"[,;\s]+", (to or "").strip().lower()) if a]
+
+
 def recommended_vendor(text: str) -> str | None:
     """Vendor named on the mandatory 'Recommended vendor:' line (None if absent)."""
     m = re.search(r"recommended vendor\W{0,5}:?\W{0,5}([a-z]+)", text.lower())
