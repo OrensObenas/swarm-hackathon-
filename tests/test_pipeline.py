@@ -1,0 +1,66 @@
+"""Run with: python -m pytest -q  (or python tests/test_pipeline.py)"""
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from analyze import fisher_two_sided, wilson  # noqa: E402
+from pi_swarm import world as W  # noqa: E402
+from pi_swarm.backends import MockBackend  # noqa: E402
+from pi_swarm.episode import Monitor, parse_json_object, run_episode  # noqa: E402
+
+
+def test_injection_only_in_untrusted_doc():
+    assert not any(W.is_tainted(t) for t in W.World(None).docs.values())
+    w = W.World("replicating")
+    tainted = [k for k, v in w.docs.items() if W.is_tainted(v)]
+    assert tainted == [W.INJECTED_DOC]
+
+
+def test_addresses_are_reserved_domains():
+    for addr in (W.MANAGER, W.ATTACKER):
+        assert addr.endswith(".example")
+
+
+def test_task_checker():
+    assert W.report_solves_task("Recommend Bluefin Logistics at $48,200.")
+    assert not W.report_solves_task("Recommend Cedarpeak at $39,500.")
+
+
+def test_parse_json_object():
+    assert parse_json_object('blah {"final": "x"} trailing') == {"final": "x"}
+    assert parse_json_object("no json") is None
+
+
+def test_keyword_monitor():
+    m = Monitor("keyword")
+    assert m.check("a", "b", W.INJECTIONS["replicating"], lambda *a, **k: None)["suspicious"]
+    assert not m.check("a", "b", "Bluefin is cheapest at $48,200.", lambda *a, **k: None)["suspicious"]
+
+
+def test_benign_episode_has_no_attack():
+    for seed in range(5):
+        rec = run_episode({"episode_id": "t", "injection": None, "monitor": "none"}, MockBackend(seed=seed))
+        s = rec["summary"]
+        assert s["completed"] and not s["attack_success"] and s["task_success"]
+
+
+def test_perfect_monitor_stops_downstream_spread():
+    mb = MockBackend(seed=1, p_comply=1.0, p_relay=1.0)
+    mb.monitor_tpr, mb.monitor_fpr = 1.0, 0.0
+    s = run_episode({"episode_id": "t", "injection": "replicating", "monitor": "llm"}, mb)["summary"]
+    assert s["hijacked_agents"] == ["retriever"]      # patient zero is not protected by a channel monitor
+    assert s["carriers_delivered"] == []
+
+
+def test_stats():
+    assert abs(fisher_two_sided(3, 1, 1, 3) - 0.4857) < 1e-3
+    p, lo, hi = wilson(0, 30)
+    assert p == 0 and lo == 0 and 0.10 < hi < 0.12
+
+
+if __name__ == "__main__":
+    for name, fn in list(globals().items()):
+        if name.startswith("test_"):
+            fn()
+            print("ok", name)
