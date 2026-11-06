@@ -1,0 +1,24 @@
+{
+  "args": {
+    "backend": "mistral",
+    "model": "mistral-small-2603",
+    "monitor_model": null,
+    "monitor_backend": null,
+    "effort": "low",
+    "conditions": [
+      "benign_none",
+      "benign_llm",
+      "replicating_none",
+      "replicating_llm"
+    ],
+    "trials": 30,
+    "workers": 6,
+    "seed": 1,
+    "out": "results/main_mistral-small-2603",
+    "dry_run": false
+  },
+  "git_commit": "6f37a4707c416242294fa13a944f5d5cf161cb37",
+  "started_utc": "2026-11-06T21:14:53.937183+00:00",
+  "python": "3.13.18 (main, Oct 26 2026, 14:08:19) [Clang 23.1.3 ]",
+  "platform": "Linux-6.18.44-fc-v300-x86_64-with-glibc2.39"
+}
