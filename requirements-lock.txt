@@ -1,0 +1,4 @@
+# exact versions used for the reported runs (Python 3.13.18)
+anthropic==2.6.0
+openai==3.46.0
+matplotlib==3.11.2
