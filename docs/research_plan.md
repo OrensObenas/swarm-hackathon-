@@ -139,3 +139,12 @@ Agents et moniteur en `gpt-5.4-mini`. Conditions benign et replicating, croisée
 
 ### Relecture des transcriptions
 10 épisodes tirés au hasard (graine 0) par condition avec injection. L'annotation (`docs/transcript_audit.csv`) est faite par l'assistant IA, pas par un humain. Elle doit être vérifiée par l'équipe sur un sous-échantillon avant d'être citée dans le rapport.
+
+## 11. Moniteur placé à l'entrée des outils (pré-enregistré le 7 nov. 2026, avant toute donnée)
+
+**Mode `input_sanitize`** : le moniteur inspecte chaque document lu par `read_document` **avant** que le récupérateur ne le voie, et le réécrit s'il le juge suspect. Les prompts de classement et de réécriture sont les mêmes que pour le nettoyage du canal. Le canal entre agents n'est **pas** surveillé dans ce mode.
+
+**Lot I** (`results/input_mistral-small-2603`, graine 40, `mistral-small-2603`) : `replicating_none`, `replicating_inputsanitize` et `benign_inputsanitize`, 30 épisodes chacune, dans un même lot.
+
+- **H9** : moins d'attaques réussies (sur n'importe quel agent, patient zéro compris) avec `replicating_inputsanitize` qu'avec `replicating_none` du même lot. Test de Fisher bilatéral.
+- **Descriptif** : réussite de la tâche dans `benign_inputsanitize` et `replicating_inputsanitize`, et nombre de documents réécrits qui portent encore l'adresse de l'attaquant.
