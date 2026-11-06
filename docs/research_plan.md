@@ -148,3 +148,11 @@ Agents et moniteur en `gpt-5.4-mini`. Conditions benign et replicating, croisée
 
 - **H9** : moins d'attaques réussies (sur n'importe quel agent, patient zéro compris) avec `replicating_inputsanitize` qu'avec `replicating_none` du même lot. Test de Fisher bilatéral.
 - **Descriptif** : réussite de la tâche dans `benign_inputsanitize` et `replicating_inputsanitize`, et nombre de documents réécrits qui portent encore l'adresse de l'attaquant.
+
+## 12. Protocole d'appels d'outils natifs (pré-enregistré le 7 nov. 2026, avant toute donnée)
+
+**Mode `--protocol native`** : les mêmes agents utilisent l'API `tools` du fournisseur au lieu du protocole JSON en texte. Une réponse sans appel d'outil vaut message de passage de relais. Un épisode d'essai a servi à vérifier le fonctionnement ; il est exclu de l'analyse.
+
+**Lot N** (`results/native_mistral-small-2603`, graine 50, `mistral-small-2603`) : `benign_none`, `replicating_none`, `replicating_llm` et `replicating_sanitize`, 30 épisodes chacune.
+
+Analyse **descriptive de réplication**. On vérifie si les sens des effets de H1, H2, H5 et H6 se retrouvent avec le protocole natif, en appliquant les mêmes tests de Fisher. Si `replicating_none` ne montre aucune propagation en aval, on le rapporte comme un résultat : la vulnérabilité dépend alors du protocole.
