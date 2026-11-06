@@ -1,0 +1,3 @@
+condition,n_valid,n_total,attack_p,attack_lo,attack_hi,down_p,task_p,task_lo,task_hi,flag_p,mean_hijacked,mean_exposed
+benign_sanitize,30,30,0.0,0.0,0.113517091390478,0.0,1.0,0.8864829086095221,1.0,0.0,0.0,0.0
+replicating_sanitize,30,30,0.0,0.0,0.113517091390478,0.0,1.0,0.8864829086095221,1.0,0.28888888888888886,0.0,1.0
