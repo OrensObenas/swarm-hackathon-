@@ -32,7 +32,7 @@ from pi_swarm.episode import run_episode
 
 INJECTION_KEYS = [None, "direct", "replicating", "polite", "monitor_bypass", "sanitizer_bypass"]
 MONITOR_SHORT = {"none": "none", "keyword": "keyword", "llm": "llm", "llm_sanitize": "sanitize",
-                 "input_sanitize": "inputsanitize"}
+                 "input_sanitize": "inputsanitize", "block_retry": "blockretry", "block_abstain": "blockabstain"}
 # name -> (injection, monitor); e.g. "benign_none", "replicating_llm", "polite_sanitize".
 # "sanitize" was added after the main run (exploratory there; pre-registered for later batches).
 CONDITIONS = {f"{inj or 'benign'}_{short}": (inj, mon)
