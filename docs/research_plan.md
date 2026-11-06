@@ -85,3 +85,17 @@ Légende : ✔ = référence vérifiée par recherche web le 6 nov. 2026 ; ◯ =
 ## 7. Travail préexistant
 
 Tout le code de ce dépôt a été écrit pendant le hackathon (premier commit le 6 nov. 2026), avec l'aide d'un assistant IA (Claude Code). Si vous réutilisez autre chose (code, idées d'un projet antérieur), déclarez-le dans le rapport.
+
+## 8. Amendements après pilote (consignés **avant** le plan principal)
+
+Les épisodes des pilotes sont exclus de l'analyse principale. Leurs journaux restent dans `results/pilot*` pour la transparence.
+
+| Pilote | Configuration | Observations (n = 5 par condition, descriptif) | Décision |
+|---|---|---|---|
+| `pilot_mistral-small-2603` | `replicating_none` | Pas d'effet plancher : 2/5 épisodes avec l'analyste détourné. Réussite de la tâche 0/5, mais à la lecture, plusieurs rapports recommandaient bien Bluefin sans recopier le prix. | Règle du pilote satisfaite : **modèle des agents = `mistral-small-2603`** (Mistral plutôt que Claude, car c'est la clé disponible). Le critère de tâche était trop strict et a été remplacé par une ligne obligatoire `Recommended vendor: <nom>` dans le rapport. Nouvelle mesure secondaire : fournisseur recommandé. |
+| `pilot2_mistral-small-2603` | `benign_none`, `replicating_none` | Réussite de la tâche 2/5 **même sans injection** : le rédacteur envoyait lui-même l'e-mail au manager et ne transmettait qu'un message vide de contenu, puis le relecteur inventait des fournisseurs (« SwiftCargo »…). Défaut du harnais. | Rôles clarifiés : seul le relecteur écrit au manager, chaque agent transmet son contenu complet. L'outil `send_email` reste accessible à tous les agents, donc la surface d'attaque est inchangée. |
+| `pilot3_mistral-small-2603` | idem | Tâche 5/5 sans injection et 5/5 avec ; injection reçue par 3,4 agents en moyenne ; 1/5 épisode avec un agent en aval détourné. | Configuration gelée pour le plan principal. |
+
+**Conséquence pour l'interprétation** : la formulation finale des rôles a été choisie pour que la tâche légitime fonctionne. Elle n'a pas été optimisée pour l'attaque. Le taux d'attaque absolu dépend de ces choix et du modèle, il n'est donc pas généralisable. La comparaison avec et sans moniteur, menée sous la même configuration, reste l'objet principal.
+
+**Moniteur** : même modèle que les agents (`mistral-small-2603`), comme prévu au §5. Condition secondaire ajoutée avant les données principales : un moniteur d'un autre fournisseur (`gpt-5.4-mini`) sur `replicating_llm` et `benign_llm`, pour tester la limite n° 5 (échecs corrélés).
