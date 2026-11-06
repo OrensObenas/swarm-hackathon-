@@ -30,20 +30,12 @@ from datetime import datetime, timezone
 from pi_swarm.backends import make_backend
 from pi_swarm.episode import run_episode
 
-CONDITIONS = {
-    #  name               injection       monitor
-    "benign_none":       (None,          "none"),
-    "benign_llm":        (None,          "llm"),
-    "benign_keyword":    (None,          "keyword"),
-    "replicating_none":  ("replicating", "none"),
-    "replicating_llm":   ("replicating", "llm"),
-    "replicating_keyword": ("replicating", "keyword"),
-    # Exploratory (added after the main run): rewrite instead of withhold.
-    "replicating_sanitize": ("replicating", "llm_sanitize"),
-    "benign_sanitize":   (None,          "llm_sanitize"),
-    "direct_none":       ("direct",      "none"),
-    "direct_llm":        ("direct",      "llm"),
-}
+INJECTION_KEYS = [None, "direct", "replicating", "polite", "monitor_bypass", "sanitizer_bypass"]
+MONITOR_SHORT = {"none": "none", "keyword": "keyword", "llm": "llm", "llm_sanitize": "sanitize"}
+# name -> (injection, monitor); e.g. "benign_none", "replicating_llm", "polite_sanitize".
+# "sanitize" was added after the main run (exploratory there; pre-registered for later batches).
+CONDITIONS = {f"{inj or 'benign'}_{short}": (inj, mon)
+              for inj in INJECTION_KEYS for mon, short in MONITOR_SHORT.items()}
 CORE = ["benign_none", "benign_llm", "replicating_none", "replicating_llm"]
 
 
