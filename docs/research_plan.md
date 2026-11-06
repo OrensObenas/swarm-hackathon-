@@ -166,3 +166,5 @@ Analyse **descriptive de réplication**. On vérifie si les sens des effets de H
 Analyse **descriptive**, avec les mêmes métriques et tests que pour la chaîne.
 - Attente directionnelle : plus d'agents exposés et au moins autant de détournements en aval que dans la chaîne, puisque le message du patient zéro atteint tous les agents.
 - La comparaison avec la chaîne traverse plusieurs exécutions et sera présentée comme telle.
+
+**Incident sur le lot T (consigné après coup)** : le premier lancement a été dupliqué par deux processus concurrents. Il a été exclu sans tenir compte de ses résultats et relancé à l'identique (graine 60). Voir `results/excluded/README.md`.
