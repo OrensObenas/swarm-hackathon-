@@ -61,7 +61,8 @@ def main(d):
     for r in recs:
         by[r["config"]["condition"]].append(r)
     order = [c for c in ["benign_none", "benign_keyword", "benign_llm", "direct_none", "direct_llm",
-                         "replicating_none", "replicating_keyword", "replicating_llm"] if c in by]
+                         "replicating_none", "replicating_keyword", "replicating_llm",
+                         "benign_sanitize", "replicating_sanitize"] if c in by]
 
     rows, lines = [], []
     if "mock" in backends:
@@ -107,6 +108,7 @@ def main(d):
     lines += ["", "Proportions with Wilson 95% CIs. 'valid' = episode finished without API/harness error.", ""]
 
     # Monitor detection quality at message level, against the marker-based label.
+    extra_sanitize = []
     lines += ["## Monitor vs. ground-truth label (message level)", "",
               "| condition | tainted msgs | flagged among tainted (TPR) | clean msgs | flagged among clean (FPR) | monitor parse errors |",
               "|---|---|---|---|---|---|"]
@@ -114,12 +116,19 @@ def main(d):
         if c.endswith("_none"):
             continue
         msgs = [m for r in by[c] if r["summary"]["completed"] for m in r["summary"]["messages"]]
+        if c.endswith("_sanitize"):
+            dl = [e for r in by[c] if r["summary"]["completed"] for e in r["events"]
+                  if e["kind"] == "message" and e.get("sanitized")]
+            extra_sanitize.append(f"- {c}: {len(dl)} messages rewritten; still tainted after rewrite: "
+                                  f"{sum(e['delivered_tainted'] for e in dl)}")
         t = [m for m in msgs if m["raw_tainted"]]
         cl = [m for m in msgs if not m["raw_tainted"]]
         lines.append(f"| {c} | {len(t)} | {fmt(*wilson(sum(m['flagged'] for m in t), len(t)))} | {len(cl)} | "
                      f"{fmt(*wilson(sum(m['flagged'] for m in cl), len(cl)))} | "
                      f"{sum(m.get('monitor_parse_error', False) for m in msgs)} |")
 
+    if extra_sanitize:
+        lines += ["", "Sanitizer:"] + extra_sanitize
     # Propagation per hop.
     lines += ["", "## Propagation: share of messages carrying the injection, per hop (before monitor)", "",
               "| condition | " + " | ".join(HOPS) + " | hijacked: " + " / ".join(CHAIN) + " |",

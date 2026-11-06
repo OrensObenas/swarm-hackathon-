@@ -38,6 +38,9 @@ CONDITIONS = {
     "replicating_none":  ("replicating", "none"),
     "replicating_llm":   ("replicating", "llm"),
     "replicating_keyword": ("replicating", "keyword"),
+    # Exploratory (added after the main run): rewrite instead of withhold.
+    "replicating_sanitize": ("replicating", "llm_sanitize"),
+    "benign_sanitize":   (None,          "llm_sanitize"),
     "direct_none":       ("direct",      "none"),
     "direct_llm":        ("direct",      "llm"),
 }
