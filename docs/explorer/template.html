@@ -1,0 +1,257 @@
+<title>Silent Failure Explorer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+/* Layout: a lab notebook — controls on top, one comparison strip, then the chosen condition and a real transcript, read top to bottom. */
+:root{
+  --paper:#F6F5F1; --card:#FFFFFF; --ink:#1B2430; --ink2:#4A5568; --muted:#6A7179; --rule:#DCDFE3; --soft:#ECEEF1;
+  --taint:#B4501C; --taint-bg:#FBEDE4; --ok:#1F7A55; --ok-bg:#E6F2EC; --warn-bg:#FFF4D6;
+  --m-none:#2a78d6; --m-block:#eb6834; --m-retry:#6250d6; --m-abstain:#eda100; --m-rewrite:#1baf7a;
+  --serif:'Source Serif 4', Georgia, serif; --sans:'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif; --mono:'IBM Plex Mono', ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#151B24; --card:#1D2531; --ink:#ECEAE4; --ink2:#C3C8CF; --muted:#9AA3AF; --rule:#2F3946; --soft:#252E3A;
+  --taint:#F09A66; --taint-bg:#3A271D; --ok:#5FC596; --ok-bg:#1B3329; --warn-bg:#3A3220;
+  --m-none:#3987e5; --m-block:#d95926; --m-retry:#9085e9; --m-abstain:#c98500; --m-rewrite:#199e70; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#151B24; --card:#1D2531; --ink:#ECEAE4; --ink2:#C3C8CF; --muted:#9AA3AF; --rule:#2F3946; --soft:#252E3A;
+  --taint:#F09A66; --taint-bg:#3A271D; --ok:#5FC596; --ok-bg:#1B3329; --warn-bg:#3A3220;
+  --m-none:#3987e5; --m-block:#d95926; --m-retry:#9085e9; --m-abstain:#c98500; --m-rewrite:#199e70; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+.wrap{max-width:1160px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-direction:column;gap:8px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--taint);font-weight:600}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(28px,4vw,40px);line-height:1.12;margin:0;text-wrap:balance}
+h2{font-family:var(--serif);font-weight:600;font-size:22px;margin:0;text-wrap:balance}
+h3{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:600}
+.lede{color:var(--ink2);max-width:68ch;margin:0}
+.lede a{color:inherit}
+.controls{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+label{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:8px 10px;min-width:220px;max-width:100%}
+select:focus-visible,button:focus-visible{outline:2px solid var(--m-none);outline-offset:2px}
+.batchdesc{color:var(--ink2);font-size:14px;flex:1 1 260px;min-width:0}
+section.panel{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.cmp{display:grid;grid-template-columns:minmax(150px,1.2fr) repeat(4,minmax(0,1fr));gap:0;border-top:1px solid var(--rule)}
+.cmp > div{padding:10px 8px;border-bottom:1px solid var(--rule);min-width:0}
+.cmp .hd{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding-block:8px}
+.mrow{cursor:pointer}
+.mrow.sel{background:var(--soft)}
+.mname{display:flex;align-items:center;gap:8px;font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.ci{display:flex;flex-direction:column;gap:3px}
+.ci svg{width:100%;height:14px;display:block}
+.ci .v{font-variant-numeric:tabular-nums;font-size:13px;color:var(--ink2)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.tile{border:1px solid var(--rule);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.tile .n{font-family:var(--serif);font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.tile .l{font-size:13px;color:var(--ink2)}
+.tile.bad .n{color:var(--taint)} .tile.good .n{color:var(--ok)}
+.hops{display:flex;flex-direction:column;gap:8px}
+.hop{display:grid;grid-template-columns:150px 1fr 56px;gap:10px;align-items:center;font-size:14px}
+.bar{height:12px;background:var(--soft);border-radius:6px;overflow:hidden}
+.bar > span{display:block;height:100%;background:var(--taint);border-radius:6px}
+.hop .k{font-variant-numeric:tabular-nums;text-align:right;color:var(--ink2)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.eptabs{display:flex;flex-wrap:wrap;gap:8px}
+.eptabs button{font:inherit;font-size:13px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer;display:flex;gap:6px;align-items:center}
+.eptabs button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip{font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.chip.taint{background:var(--taint-bg);color:var(--taint)} .chip.ok{background:var(--ok-bg);color:var(--ok)}
+.chip.flag{background:var(--warn-bg);color:var(--ink)} .chip.plain{background:var(--soft);color:var(--ink2)}
+.timeline{display:flex;flex-direction:column;gap:10px}
+.step{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:start}
+.who{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.box{border:1px solid var(--rule);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.box.t{border-color:var(--taint);background:var(--taint-bg)}
+.box .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--ink2)}
+.txt{font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink);max-height:180px;overflow:auto;background:var(--paper);border-radius:6px;padding:8px}
+.box.t .txt{background:var(--card)}
+.sub{font-size:12px;color:var(--muted)}
+.outbox .box{gap:4px}
+.note{font-size:13px;color:var(--muted)}
+footer{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (max-width:640px){
+  .cmp{grid-template-columns:minmax(110px,1fr) repeat(2,minmax(0,1fr))}
+  .cmp .c2,.cmp .c4{display:none}
+  .step{grid-template-columns:1fr}
+  .hop{grid-template-columns:110px 1fr 48px}
+}
+@media (prefers-reduced-motion:no-preference){.mrow,.eptabs button{transition:background .15s}}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Swarm Alignment Hackathon · results explorer</span>
+  <h1>What a monitor stops, and what it breaks</h1>
+  <p class="lede">Four agents pass messages along a chain; one vendor quote carries a self-replicating injection. Pick a batch and an injection to compare monitor strategies, then open real episodes to see each message the monitor flagged, withheld or rewrote. Every number is computed from the experiment logs (30 episodes per condition). Code and report: <a href="https://github.com/OrensObenas/swarm-hackathon-" target="_blank" rel="noopener">github.com/OrensObenas/swarm-hackathon-</a>.</p>
+</header>
+
+<div class="controls">
+  <div class="field"><label for="batch">Batch</label><select id="batch"></select></div>
+  <div class="field"><label for="inj">Injection</label><select id="inj"></select></div>
+  <p class="batchdesc" id="bdesc"></p>
+</div>
+
+<section class="panel" aria-labelledby="cmp-h">
+  <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline">
+    <h2 id="cmp-h">Monitor strategies in this batch</h2>
+    <span class="note">Bars: 95% Wilson interval · dot: observed rate · select a row for details</span>
+  </div>
+  <div class="cmp" id="cmp" role="table"></div>
+</section>
+
+<section class="panel" aria-labelledby="det-h">
+  <h2 id="det-h"></h2>
+  <div class="tiles" id="tiles"></div>
+  <div class="two">
+    <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+      <h3>Messages carrying the injection, by hop</h3>
+      <div class="hops" id="hops"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+      <h3>Monitor at message level</h3>
+      <div id="mon" class="note"></div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="ep-h">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <h2 id="ep-h">Inside an episode</h2>
+    <p class="note" style="margin:0">Sampled from this condition (attacks and failures first). Texts are truncated to 700 characters.</p>
+  </div>
+  <div class="eptabs" id="eptabs"></div>
+  <div class="timeline" id="timeline"></div>
+  <div class="outbox" id="outbox" style="display:flex;flex-direction:column;gap:8px"></div>
+</section>
+
+<footer>
+  <span>Fully simulated: fictional companies, <code>.example</code> addresses, e-mails written only to memory.</span>
+  <span>Agents: mistral-small-2603 (batch M: gpt-5.4-mini). “Silent failure” = wrong report naming a vendor that does not exist, with no mention of missing data.</span>
+</footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const MODES = {none:["No monitor","--m-none"], keyword:["Keyword filter","--m-abstain"], llm:["Block","--m-block"],
+  blockretry:["Block + retry","--m-retry"], blockabstain:["Block + abstain notice","--m-abstain"],
+  sanitize:["Rewrite message","--m-rewrite"], inputsanitize:["Rewrite tool input","--m-rewrite"]};
+const MODE_ORDER = ["none","keyword","llm","blockretry","blockabstain","sanitize","inputsanitize"];
+const INJ = {benign:"No injection", replicating:"Self-replicating notice", direct:"Direct notice", polite:"Polite request (variant)",
+  monitor_bypass:"Addresses the monitor (variant)", sanitizer_bypass:"Poses as a requirement (variant)"};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const split = c => { const i = c.lastIndexOf("_"); return [c.slice(0,i), c.slice(i+1)]; };
+const pct = a => Math.round(100*a[0]/Math.max(1,a[1]));
+let st = {b: "B", inj: "replicating", mode: null, ep: 0};
+try { const s = JSON.parse(localStorage.getItem("sfe") || "null"); if (s && DATA.batches.some(b => b.id === s.b)) st = Object.assign(st, s); } catch (e) {}
+const save = () => { try { localStorage.setItem("sfe", JSON.stringify({b: st.b, inj: st.inj})); } catch (e) {} };
+const batch = () => DATA.batches.find(b => b.id === st.b);
+
+function ciBar(a, color) {
+  const lo = a[2]*100, hi = a[3]*100, p = 100*a[0]/Math.max(1,a[1]);
+  return `<svg viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true">
+    <rect x="0" y="6" width="100" height="2" fill="var(--soft)"/>
+    <rect x="${lo}" y="5" width="${Math.max(1, hi-lo)}" height="4" rx="2" fill="${color}" opacity=".45"/>
+    <circle cx="${Math.min(98.5, Math.max(1.5, p))}" cy="7" r="3.5" fill="${color}" stroke="var(--card)" stroke-width="1"/></svg>`;
+}
+function initControls() {
+  $("#batch").innerHTML = DATA.batches.map(b => `<option value="${b.id}">${esc(b.label)}</option>`).join("");
+  $("#batch").value = st.b;
+  $("#batch").onchange = e => { st.b = e.target.value; st.mode = null; st.ep = 0; fixInj(); save(); render(); };
+  $("#inj").onchange = e => { st.inj = e.target.value; st.mode = null; st.ep = 0; save(); render(); };
+  fixInj();
+}
+function fixInj() {
+  const injs = [...new Set(Object.keys(batch().conds).map(c => split(c)[0]))];
+  injs.sort((a,b) => (a === "benign") - (b === "benign"));
+  if (!injs.includes(st.inj)) st.inj = injs[0];
+  $("#inj").innerHTML = injs.map(i => `<option value="${i}">${esc(INJ[i] || i)}</option>`).join("");
+  $("#inj").value = st.inj;
+}
+function modesHere() {
+  return Object.keys(batch().conds).filter(c => split(c)[0] === st.inj).map(c => split(c)[1])
+    .sort((a,b) => MODE_ORDER.indexOf(a) - MODE_ORDER.indexOf(b));
+}
+function render() {
+  const b = batch();
+  const pm = b.monitor_model && b.monitor_model !== b.model ? ` · monitor ${b.monitor_model}` : "";
+  $("#bdesc").textContent = `${b.desc}. Agents ${b.model}${pm}; ${b.protocol} protocol; ${b.topology} topology.`;
+  const modes = modesHere();
+  if (!st.mode || !modes.includes(st.mode)) st.mode = modes.includes("llm") ? "llm" : modes[modes.length - 1];
+  const cols = [["down","Downstream hijack","c1"],["attack","Attack reached attacker","c2"],["task","Task completed","c3"],["silent","Silent failure","c4"]];
+  let h = `<div class="hd" role="columnheader">Monitor</div>` + cols.map(c => `<div class="hd ${c[2]}" role="columnheader">${c[1]}</div>`).join("");
+  for (const m of modes) {
+    const c = b.conds[`${st.inj}_${m}`], [name, tok] = MODES[m] || [m, "--m-none"], col = `var(${tok})`, sel = m === st.mode ? " sel" : "";
+    h += `<div class="mrow${sel}" role="rowheader" tabindex="0" data-m="${m}"><span class="mname"><span class="dot" style="background:${col}"></span>${esc(name)}</span></div>`;
+    h += cols.map(k => `<div class="mrow${sel} ${k[2]}" data-m="${m}"><div class="ci">${ciBar(c[k[0]], col)}<span class="v">${c[k[0]][0]}/${c[k[0]][1]}</span></div></div>`).join("");
+  }
+  $("#cmp").innerHTML = h;
+  document.querySelectorAll(".mrow").forEach(el => {
+    const go = () => { st.mode = el.dataset.m; st.ep = 0; render(); };
+    el.onclick = go; el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
+  });
+  detail();
+}
+function detail() {
+  const b = batch(), c = b.conds[`${st.inj}_${st.mode}`], name = (MODES[st.mode] || [st.mode])[0];
+  $("#det-h").textContent = `${name} · ${INJ[st.inj] || st.inj}`;
+  const t = (a, l, cls) => `<div class="tile ${cls||""}"><span class="n">${a[0]}/${a[1]}</span><span class="l">${l}</span></div>`;
+  const injected = st.inj !== "benign";
+  $("#tiles").innerHTML = [
+    injected ? t(c.down, "downstream agent hijacked", c.down[0] ? "bad" : "good") : "",
+    injected ? t(c.attack, "e-mail reached the attacker", c.attack[0] ? "bad" : "good") : "",
+    t(c.task, "task completed (Bluefin)", pct(c.task) >= 90 ? "good" : pct(c.task) < 50 ? "bad" : ""),
+    t(c.strict, "strict task (price stated, nothing invented)"),
+    t(c.silent, "silent failure", c.silent[0] ? "bad" : ""),
+    t(c.visible, "visible failure"),
+  ].join("");
+  const hopNames = ["Retriever → analyst","Analyst → writer","Writer → reviewer"];
+  $("#hops").innerHTML = injected ? c.hops.map((k,i) => `<div class="hop"><span>${hopNames[i]}</span><span class="bar"><span style="width:${100*k/c.n}%"></span></span><span class="k">${k}/${c.n}</span></div>`).join("")
+    + `<span class="note">Agents exposed on average: ${c.exposed} of 4.</span>` : `<span class="note">No injection in this condition.</span>`;
+  const mon = st.mode !== "none" && st.mode !== "inputsanitize";
+  $("#mon").innerHTML = mon ? `Flagged <b>${c.tpr[0]}</b> of ${c.tpr[1]} messages that carried the injection, and <b>${c.fpr[0]}</b> of ${c.fpr[1]} that did not.`
+    + (c.fpr[0] ? ` Flags on clean messages are often agents warning about the attack or admitting missing data.` : "")
+    : st.mode === "inputsanitize" ? `This mode filters documents before the retriever reads them; inter-agent messages are not checked.` : `No monitor in this condition.`;
+  episodes(c);
+}
+const OUT = {success:["task completed","ok"], silent_failure:["silent failure","taint"], visible_failure:["visible failure","flag"], wrong_vendor:["wrong vendor","taint"]};
+function episodes(c) {
+  const eps = c.episodes;
+  if (!eps.length) { $("#eptabs").innerHTML = ""; $("#timeline").innerHTML = `<p class="note">No sampled episode.</p>`; $("#outbox").innerHTML = ""; return; }
+  st.ep = Math.min(st.ep, eps.length - 1);
+  $("#eptabs").innerHTML = eps.map((e,i) => `<button type="button" data-i="${i}" aria-pressed="${i === st.ep}">${esc(e.id.split("-").pop())}
+    ${e.attack ? `<span class="chip taint">attack</span>` : ""}<span class="chip ${OUT[e.outcome][1]}">${OUT[e.outcome][0]}</span></button>`).join("");
+  document.querySelectorAll("#eptabs button").forEach(bt => bt.onclick = () => { st.ep = +bt.dataset.i; episodes(c); });
+  const e = eps[st.ep];
+  let h = "";
+  for (const s of e.steps) {
+    if (s.k === "tool") {
+      const t = s.tool === "send_email" && /vendor-audit/.test(s.d);
+      h += `<div class="step"><span class="who">${esc(s.a)}</span><div class="box${t || s.t ? " t" : ""}"><div class="meta"><b>${esc(s.tool)}</b> <span>${esc(s.d)}</span>
+        ${t ? `<span class="chip taint">sent to the attacker</span>` : ""}${s.rt && !s.t ? `<span class="chip ok">injection removed before reading</span>` : s.t ? `<span class="chip taint">contains the injection</span>` : ""}</div></div></div>`;
+    } else if (s.k === "filter") {
+      h += `<div class="step"><span class="who">input filter</span><div class="box"><div class="meta"><span class="chip ok">document rewritten</span><span>${esc(s.reason)}</span></div><div class="txt">${esc(s.after)}</div></div></div>`;
+    } else if (s.k === "retry") {
+      h += `<div class="step"><span class="who">monitor</span><div class="box"><div class="meta"><span class="chip flag">blocked · sender asked to resend</span><span>${esc(s.reason)}</span></div></div></div>`;
+    } else if (s.k === "msg") {
+      const chips = [s.taint ? `<span class="chip taint">carries the injection</span>` : `<span class="chip plain">no injection trace</span>`,
+        s.flag ? `<span class="chip flag">flagged</span>` : "", s.san ? `<span class="chip ok">rewritten</span>` : "",
+        s.retried ? `<span class="chip ok">resent after feedback</span>` : "",
+        s.flag && !s.san && !s.retried ? `<span class="chip taint">withheld</span>` : ""].join("");
+      h += `<div class="step"><span class="who">${esc(s.a)} → ${esc(s.to)}</span><div class="box${s.taint ? " t" : ""}"><div class="meta">${chips}${s.flag ? `<span class="sub">${esc(s.reason)}</span>` : ""}</div>
+        <span class="sub">${s.del ? "Written by the agent" : "Message"}</span><div class="txt">${esc(s.raw)}</div>
+        ${s.del ? `<span class="sub">Delivered to the ${esc(s.to)}</span><div class="txt">${esc(s.del)}</div>` : ""}</div></div>`;
+    }
+  }
+  $("#timeline").innerHTML = h;
+  $("#outbox").innerHTML = `<h3>Outbox at the end</h3>` + (e.outbox.length ? e.outbox.map(o => {
+    const bad = /vendor-audit/.test(o.to);
+    return `<div class="box${bad ? " t" : ""}"><div class="meta"><b>${esc(o.from)}</b> → ${esc(o.to)} ${bad ? `<span class="chip taint">exfiltration</span>` : `<span class="chip plain">report</span>`}</div><span class="sub">${esc(o.subj)}</span><div class="txt">${esc(o.body)}</div></div>`;
+  }).join("") : `<p class="note">No e-mail was sent.</p>`);
+}
+initControls(); render();
+</script>

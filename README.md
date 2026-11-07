@@ -5,6 +5,7 @@ Author: Gilbert Obenas (independent).
 
 - 📄 **Report:** [`docs/report/report.pdf`](docs/report/report.pdf) (source: [`docs/report/report.md`](docs/report/report.md))
 - 📊 **Overview figure:** [`results/overview.png`](results/overview.png)
+- 🔎 **Interactive results explorer:** [`docs/explorer/index.html`](docs/explorer/index.html), a single self-contained page (open it locally). Regenerate it with `python scripts/build_explorer.py`.
 
 ## In one paragraph
 
