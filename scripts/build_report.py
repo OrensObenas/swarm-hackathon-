@@ -57,32 +57,48 @@ def main():
     if missing:
         sys.exit(f"unknown placeholders: {missing}")
     md = re.sub(r"\{\{(\w+)\}\}", lambda m: str(vals[m.group(1)]), src)
-    with open(os.path.join(OUT, "report.md"), "w") as f:
-        f.write(md)
 
-    abstract = md.split("## Abstract", 1)[1].split("\n## ", 1)[0]
+    abstract = re.sub(r"<[^>]+>", " ", md.split('class="abstract">', 1)[1].split("</div>", 1)[0])
     n_abs = len(re.findall(r"\b[\w/.,'’-]+\b", abstract))
-    body = md.split("## 1. Introduction", 1)[1].split("## References", 1)[0]
+    body = md.split("## 1. Introduction", 1)[1].split("## Code and Data", 1)[0]
     n_body = len(body.split())
     print(f"abstract words ≈ {n_abs} (required 150–250); body words ≈ {n_body}")
 
-    css = """body{font-family:'Times New Roman',serif;font-size:10.5pt;line-height:1.35;max-width:none;margin:0}
-h1{font-size:16pt;text-align:center}h2{font-size:12.5pt;margin-top:14pt}h3{font-size:11pt}
-table{border-collapse:collapse;font-size:8.5pt;margin:6pt 0}td,th{border:1px solid #999;padding:2px 4px}
-pre{font-size:7.5pt;white-space:pre-wrap;background:#f5f5f5;padding:4px}img{max-width:100%}
-.preview{color:#b00;font-size:8pt;text-align:center}"""
+    # Markdown copy for GitHub readers: figure path relative to docs/report/.
+    with open(os.path.join(OUT, "report.md"), "w") as f:
+        f.write(md.replace("](FIGURE_OVERVIEW)", "](../../results/overview.png)"))
+
+    fonts = os.path.join(OUT, "fonts")
+    css = f"""@font-face{{font-family:'OST';src:url('{fonts}/OldStandardTT-normal-400.ttf')}}
+@font-face{{font-family:'OST';font-weight:700;src:url('{fonts}/OldStandardTT-normal-700.ttf')}}
+@font-face{{font-family:'OST';font-style:italic;src:url('{fonts}/OldStandardTT-italic-400.ttf')}}
+body{{font-family:'OST','Times New Roman',serif;font-size:10.5pt;line-height:1.32;max-width:none;margin:0;color:#000}}
+header#title-block-header{{display:none}}
+.titleblock{{text-align:center;margin:0 6% 10pt}} hr.thick{{border:0;border-top:3px solid #000;margin:0 0 14pt}}
+hr.thin{{border:0;border-top:1px solid #000;margin:14pt 0 14pt}}
+h1.title{{font-size:17pt;font-weight:700;margin:0;line-height:1.25}}
+.authors{{display:flex;justify-content:center;gap:40pt;margin:6pt 0}} .author{{font-size:10.5pt}}
+.with{{font-size:10pt;margin-top:8pt}}
+h2.abstract-h{{text-align:center;font-size:13pt;margin:12pt 0 4pt;color:#000}}
+.abstract{{margin:0 12%;text-align:justify;font-size:10pt}}
+h2{{font-size:13pt;color:#434343;margin:14pt 0 4pt}} h3{{font-size:11.5pt;color:#434343;margin:10pt 0 3pt}}
+p{{margin:4pt 0;text-align:justify}} li{{margin:1pt 0}}
+table{{border-collapse:collapse;font-size:8.3pt;margin:6pt auto;font-family:Arial,sans-serif}}
+td,th{{border:1px solid #999;padding:2px 4px}} th{{background:#f2f2f2}}
+pre{{font-size:7.3pt;white-space:pre-wrap;background:#f6f6f6;padding:4px;font-family:monospace}}
+code{{font-size:8.8pt}} figure{{margin:6pt 0;text-align:center}} img{{max-width:100%;max-height:8.6cm}}
+figcaption{{font-size:9pt;text-align:justify;margin:2pt 4%}}
+.footnote{{font-size:8.5pt;border-top:1px solid #999;padding-top:3pt;margin-top:14pt}}
+h2:has(+ * ) {{}}"""
     with open(os.path.join(OUT, "style.css"), "w") as f:
         f.write(css)
-    fig = os.path.join(ROOT, "results", "overview.png")
-    md_fig = md.replace("**Table 1.**", f"![Figure 1. Downstream hijacking (left) and task success (right) under the "
-                        f"replicating injection, by batch and monitor mode. Points: proportion; bars: Wilson 95% CI; "
-                        f"n = 30 per point.]({fig})\n\n**Table 1.**", 1)
+    md_fig = md.replace("](FIGURE_OVERVIEW)", "](" + os.path.join(ROOT, "results", "overview.png") + ")")
     tmp_md = os.path.join(OUT, "_with_fig.md")
     with open(tmp_md, "w") as f:
         f.write(md_fig)
     html = os.path.join(OUT, "report.html")
-    subprocess.run(["pandoc", "-f", "markdown+lists_without_preceding_blankline", tmp_md, "-s", "--embed-resources", "--css", os.path.join(OUT, "style.css"),
-                    "-o", html, "--metadata", "lang=en"], check=True)
+    subprocess.run(["pandoc", "-f", "markdown+lists_without_preceding_blankline", tmp_md, "-s", "--embed-resources",
+                    "--css", os.path.join(OUT, "style.css"), "-o", html, "--metadata", "lang=en"], check=True)
     os.remove(tmp_md)
     pdf = os.path.join(OUT, "report.pdf")
     js = f"""const {{chromium}}=require('playwright');(async()=>{{const b=await chromium.launch();

@@ -17,8 +17,10 @@ BATCHES = [  # label, directory, condition-name prefix
     ("T (shared board)", "board_mistral-small-2603", "replicating"),
     ("A: sanitizer_bypass", "adversarial_mistral-small-2603", "sanitizer_bypass"),
     ("M (GPT agents)", "model_gpt-5.4-mini", "replicating"),
+    ("B (recovery)", "recovery_mistral-small-2603", "replicating"),
 ]
-MODES = [("none", "No monitor", "#2a78d6"), ("llm", "Block", "#eb6834"), ("sanitize", "Sanitize", "#1baf7a")]
+MODES = [("none", "No monitor", "#2a78d6"), ("llm", "Block", "#eb6834"), ("blockretry", "Block + retry", "#6250d6"),
+         ("sanitize", "Rewrite", "#1baf7a")]
 
 
 def rows():
@@ -59,7 +61,7 @@ def main():
                 r = next((r for r in R if r["batch"] == b and r["mode"] == mlab), None)
                 if r is None:
                     continue
-                y = i + (j - 1) * 0.24
+                y = i + (j - 1.5) * 0.2
                 ax.plot([r[f"{key}_l"], r[f"{key}_h"]], [y, y], color=col, linewidth=1.5, solid_capstyle="round")
                 ax.plot(r[f"{key}_p"], y, "o", color=col, markersize=5, markeredgecolor=surface, markeredgewidth=1,
                         label=None if labeled else mlab)
@@ -76,7 +78,7 @@ def main():
     axes[0].invert_yaxis()
     axes[0].set_xlabel("Proportion of episodes (n = 30, Wilson 95% CI)", fontsize=7, color=ink2)
     axes[1].set_xlabel("Proportion of episodes (n = 30, Wilson 95% CI)", fontsize=7, color=ink2)
-    axes[1].legend(fontsize=7, frameon=False, loc="lower left", bbox_to_anchor=(0, 1.08), ncol=3)
+    axes[1].legend(fontsize=7, frameon=False, loc="lower left", bbox_to_anchor=(-0.6, 1.08), ncol=4)
     fig.tight_layout()
     fig.savefig(os.path.join(ROOT, "results", "overview.png"), facecolor=surface)
     print(f"wrote results/overview.png ({len(R)} rows)")

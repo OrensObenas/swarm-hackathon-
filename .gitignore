@@ -3,3 +3,4 @@ __pycache__/
 .pytest_cache/
 docs/report/report.html
 docs/report/style.css
+docs/report/fonts/

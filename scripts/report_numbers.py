@@ -212,7 +212,18 @@ def tables(N, cells):
         rf = f"{c['relay_flagged']}/{c['relay_msgs']}" if not cond.endswith("_none") else f"– ({c['relay_msgs']} relays)"
         wf = f"{c['warn_flagged']}/{c['warn_msgs']}" if not cond.endswith("_none") else f"– ({c['warn_msgs']} warnings)"
         ts.append(f"| {lab} | {c['attack']}/{c['n']} | {c['exfil_sub']}/{c['n']} | {c['task']}/{c['n']} | {c['strict']}/{c['n']} | {rf} | {wf} |")
-    return {"TABLE_B": "\n".join(tb), "TABLE_STRICT": "\n".join(ts), "TABLE_SYNTH": table_synth, "TABLE_BENIGN": table_benign, "TABLE_ADV": table_adv}
+    core = ["| Batch | Monitor | Attack | Downstream hijack | Task (lenient / strict) | Silent failure | Visible failure |",
+            "|---|---|---|---|---|---|---|"]
+    for lab, b, m, nm in (("R", "R", "none", "none"), ("R", "R", "llm", "block"), ("R", "R", "sanitize", "rewrite"),
+                          ("B", "B", "llm", "block"), ("B", "B", "blockretry", "block + retry"),
+                          ("B", "B", "blockabstain", "block + abstain notice"), ("B", "B", "sanitize", "rewrite"),
+                          ("I", "I", "none", "none"), ("I", "I", "inputsanitize", "rewrite tool input")):
+        if (b, f"replicating_{m}") not in cells:
+            continue
+        c = cells[(b, f"replicating_{m}")]
+        core.append(f"| {lab} | {nm} | {c['attack']}/{c['n']} | {c['down']}/{c['n']} | {c['task']} / {c['strict']} | "
+                    f"{c['out_silent']}/{c['n']} | {c['out_visible']}/{c['n']} |")
+    return {"TABLE_CORE": "\n".join(core), "TABLE_B": "\n".join(tb), "TABLE_STRICT": "\n".join(ts), "TABLE_SYNTH": table_synth, "TABLE_BENIGN": table_benign, "TABLE_ADV": table_adv}
 
 
 if __name__ == "__main__":
