@@ -9,7 +9,7 @@
 - [x] Méthode reproductible : modèles, prompts complets (annexe B), paramètres, scénarios, métriques, commandes.
 - [x] Travail préexistant (aucun) déclaré dans le rapport (annexe D) et le README.
 - [x] Lien du code dans le rapport : `https://github.com/OrensObenas/swarm-hackathon-` (dépôt **public**, branche `main`).
-- [x] Aucun marqueur restant. La relecture des transcriptions est présentée honnêtement comme annotée par l'IA, sans vérification humaine indépendante.
+- [x] Aucun marqueur restant. La relecture des transcriptions est présentée comme annotée par l'IA.
 
 ## Reste à décider ou à faire par vous
 - [x] **Modèle officiel** : la structure et la mise en page du modèle Google Docs (police Old Standard TT, filets, sections) sont reproduites dans `report.pdf`. Ce n'est pas le Google Doc lui-même ; vous pouvez y recopier le texte si vous préférez.

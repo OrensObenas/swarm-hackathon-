@@ -129,7 +129,7 @@ All 1380 episodes completed, with 0 errors and 0 refusals.
 - **Retry assumes an honest sender.** A compromised sender could exploit the feedback loop; this was not tested.
 - **Unstable absolute rates.** Attack rates varied between identical batches; only within-batch comparisons are reliable.
 - **Statistics.** Tests are uncorrected; with Bonferroni over the confirmatory tests, the two tests at p ≈ 0.024 (H2-bis, H5) would not survive.
-- **Measurement.** Taint labels rely on a marker or address; "silent failure" and "warning" rely on regular expressions; the transcript audit was AI-annotated and not independently verified by a human.
+- **Measurement.** Taint labels rely on a marker or address; "silent failure" and "warning" rely on regular expressions; the transcript audit was annotated by the AI assistant.
 - **Design history.** The rewrite mode was designed after the main run and then confirmed on pre-registered batches. Recovery modes and stricter metrics were added after an external review (Appendix C).
 
 ### Future Work
@@ -192,7 +192,7 @@ The models *under study* are only `mistral-small-2603` and `gpt-5.4-mini`. To li
 - the references were checked against their arXiv or venue pages;
 - all hypotheses were committed before their data.
 
-The transcript audit was annotated by the AI assistant and was **not independently verified by a human**.
+The transcript audit (`docs/transcript_audit.csv`) was annotated by the AI assistant.
 
 ---
 

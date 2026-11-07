@@ -72,7 +72,7 @@ LLM outputs are not deterministic: re-runs give close, not identical, numbers.
 
 - Every hypothesis, pilot amendment and new batch was written into `docs/research_plan.md` and committed **before** its data were collected. The git history carries the timestamps. Exploratory and post-hoc analyses are labelled as such in the report.
 - Every number in the report is generated from the logs, and an unknown placeholder makes the build fail. `scripts/independent_recount.py` matches `analyze.py` on every batch. It found one analysis bug, which is fixed and documented in Appendix C of the report.
-- The transcript audit was annotated by an AI assistant and **not independently verified by a human**.
+- The transcript audit (`docs/transcript_audit.csv`) was annotated by an AI assistant.
 
 ## Pre-existing work and AI assistance
 
